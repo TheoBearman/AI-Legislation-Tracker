@@ -1,5 +1,4 @@
 import { getCollection } from '@/lib/mongodb';
-import { classifyLegislationForFetch } from '@/services/classifyLegislationService';
 import { config } from 'dotenv';
 import path from 'path';
 
@@ -8,10 +7,11 @@ config({ path: path.resolve(process.cwd(), '.env.local') });
 config({ path: path.resolve(process.cwd(), '.env') });
 
 /**
- * Remove bills that no longer match AI criteria after keyword updates
+ * Keep ONLY bills that explicitly mention "AI" or "artificial intelligence"
+ * in their title or abstract/summary
  */
-async function cleanupNonAILegislation() {
-    console.log('\n=== Cleaning Up Non-AI Legislation ===\n');
+async function strictAIFilter() {
+    console.log('\n=== Strict AI Filter - Keep Only Explicit AI Mentions ===\n');
 
     const collection = await getCollection('legislation');
 
@@ -24,32 +24,30 @@ async function cleanupNonAILegislation() {
     const removedBills: any[] = [];
 
     for (const bill of allBills) {
-        // First check: Does the bill explicitly mention AI in title?
-        const titleLower = (bill.title || '').toLowerCase();
-        const hasExplicitAIMention =
-            titleLower.includes('artificial intelligence') ||
-            titleLower.includes(' ai ') ||
-            titleLower.startsWith('ai ') ||
-            titleLower.endsWith(' ai') ||
-            /\bai\b/i.test(bill.identifier || '');
+        const title = (bill.title || '').toLowerCase();
+        const summary = (bill.summary || '').toLowerCase();
 
-        // If it explicitly mentions AI, keep it regardless of topic classification
-        if (hasExplicitAIMention) {
-            keptCount++;
-            continue;
+        // Check abstracts
+        let abstractText = '';
+        if (bill.abstracts && Array.isArray(bill.abstracts)) {
+            abstractText = bill.abstracts
+                .map((a: any) => a.abstract || '')
+                .join(' ')
+                .toLowerCase();
         }
 
-        // Re-classify using current keywords
-        const classification = classifyLegislationForFetch({
-            title: bill.title,
-            summary: bill.summary,
-            abstracts: bill.abstracts
-        });
+        // Combine all text
+        const allText = `${title} ${summary} ${abstractText}`;
 
-        const isAiRelevant = classification && classification.topicClassification.broadTopics.length > 0;
+        // Check for explicit AI mentions
+        const hasAI =
+            allText.includes('artificial intelligence') ||
+            /\bai\b/i.test(title) ||
+            /\bai\b/i.test(summary) ||
+            /\bai\b/i.test(abstractText);
 
-        if (!isAiRelevant) {
-            // This bill no longer matches AI criteria
+        if (!hasAI) {
+            // Remove this bill
             removedBills.push({
                 id: bill.id,
                 identifier: bill.identifier,
@@ -66,10 +64,10 @@ async function cleanupNonAILegislation() {
         }
     }
 
-    console.log('\n=== Cleanup Complete ===');
+    console.log('\n=== Strict Filter Complete ===');
     console.log(`Total bills processed: ${allBills.length}`);
-    console.log(`✅ Kept (AI-relevant): ${keptCount}`);
-    console.log(`❌ Removed (no longer AI-relevant): ${removedCount}`);
+    console.log(`✅ Kept (explicit AI mention): ${keptCount}`);
+    console.log(`❌ Removed (no explicit AI mention): ${removedCount}`);
 
     if (removedBills.length > 0) {
         console.log('\n=== Removed Bills Summary ===');
@@ -85,21 +83,21 @@ async function cleanupNonAILegislation() {
             console.log(`  ${jurisdiction}: ${count} bills`);
         }
 
-        // Show first 10 removed bills as examples
+        // Show first 20 removed bills as examples
         console.log('\nExamples of removed bills:');
-        for (const bill of removedBills.slice(0, 10)) {
+        for (const bill of removedBills.slice(0, 20)) {
             console.log(`  - ${bill.jurisdiction} ${bill.identifier}: ${bill.title}`);
         }
 
-        if (removedBills.length > 10) {
-            console.log(`  ... and ${removedBills.length - 10} more`);
+        if (removedBills.length > 20) {
+            console.log(`  ... and ${removedBills.length - 20} more`);
         }
     }
 
     process.exit(0);
 }
 
-cleanupNonAILegislation().catch((error) => {
-    console.error('Error during cleanup:', error);
+strictAIFilter().catch((error) => {
+    console.error('Error during strict filtering:', error);
     process.exit(1);
 });

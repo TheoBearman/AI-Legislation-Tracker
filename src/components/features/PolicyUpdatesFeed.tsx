@@ -4,7 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { LoadingOverlay } from "@/components/ui/LoadingOverlay";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { MapPin, Plus, Search, X, Grid3X3, List } from "lucide-react";
+import { MapPin, Plus, Search, X, Grid3X3, List, XCircle } from "lucide-react";
 import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import {
@@ -183,6 +183,7 @@ async function fetchBookmarkedUpdates({
     jurisdictionName = "",
     showCongress = false,
     showOnlyEnacted = false,
+    showOnlyFailed = false,
     sortField = "lastActionAt",
     sortDir = "desc"
 }: {
@@ -194,6 +195,7 @@ async function fetchBookmarkedUpdates({
     jurisdictionName?: string;
     showCongress?: boolean;
     showOnlyEnacted?: boolean;
+    showOnlyFailed?: boolean;
     sortField?: string;
     sortDir?: string;
 }) {
@@ -303,7 +305,8 @@ async function fetchUpdatesFeed({
     showCongress = false,
     sponsor = "",
     sponsorId = "",
-    showOnlyEnacted = false
+    showOnlyEnacted = false,
+    showOnlyFailed = false
 }: {
     skip?: number;
     limit?: number;
@@ -317,6 +320,7 @@ async function fetchUpdatesFeed({
     sponsor?: string;
     sponsorId?: string;
     showOnlyEnacted?: boolean;
+    showOnlyFailed?: boolean;
 }) {
     const params = new URLSearchParams({ limit: String(limit), skip: String(skip) });
     if (search) params.append("search", search);
@@ -341,6 +345,9 @@ async function fetchUpdatesFeed({
     // Always use the main endpoint and pass showOnlyEnacted as a param
     if (showOnlyEnacted) {
         params.append('showOnlyEnacted', 'true');
+    }
+    if (showOnlyFailed) {
+        params.append('showOnlyFailed', 'true');
     }
 
     // Add context for proper sorting behavior
@@ -387,6 +394,7 @@ export function PolicyUpdatesFeed() {
     const [newTagInput, setNewTagInput] = useState("");
     const [showCustomTagInput, setShowCustomTagInput] = useState(false);
     const [showOnlyEnacted, setShowOnlyEnacted] = useState(false);
+    const [showOnlyFailed, setShowOnlyFailed] = useState(false);
     const [compactView, setCompactView] = useState(false);
     const loader = useRef<HTMLDivElement | null>(null);
     const skipRef = useRef(0);
@@ -515,6 +523,7 @@ export function PolicyUpdatesFeed() {
                     jurisdictionName,
                     showCongress,
                     showOnlyEnacted,
+                    showOnlyFailed,
                     sortField: sort.field,
                     sortDir: sort.dir
                 });
@@ -564,7 +573,7 @@ export function PolicyUpdatesFeed() {
             loadingRef.current = false;
             setLoading(false);
         }
-    }, [hasMore, search, subject, sort, classification, jurisdictionName, showCongress, showOnlyBookmarked, bookmarks, sponsorId, showOnlyEnacted, compactView]);
+    }, [hasMore, search, subject, sort, classification, jurisdictionName, showCongress, showOnlyBookmarked, bookmarks, sponsorId, showOnlyEnacted, showOnlyFailed, compactView]);
 
     // Search handler for button/enter
     const handleSearch = useCallback(() => {
@@ -597,6 +606,7 @@ export function PolicyUpdatesFeed() {
                     jurisdictionName,
                     showCongress,
                     showOnlyEnacted,
+                    showOnlyFailed,
                     sortField: sort.field,
                     sortDir: sort.dir
                 });
@@ -630,7 +640,7 @@ export function PolicyUpdatesFeed() {
         } finally {
             setLoading(false);
         }
-    }, [search, subject, sort, classification, jurisdictionName, showCongress, showOnlyBookmarked, bookmarks, sponsorId, showOnlyEnacted, compactView]);
+    }, [search, subject, sort, classification, jurisdictionName, showCongress, showOnlyBookmarked, bookmarks, sponsorId, showOnlyEnacted, showOnlyFailed, compactView]);
 
     // --- Seamless state/scroll restore ---
     // Use a ref to block the initial fetch until state/scroll is restored
@@ -664,6 +674,7 @@ export function PolicyUpdatesFeed() {
                 setJurisdictionName(state.jurisdictionName || "");
                 setShowCongress(state.showCongress || false);
                 setShowOnlyEnacted(state.showOnlyEnacted || false);
+                setShowOnlyFailed(state.showOnlyFailed || false);
                 setShowOnlyBookmarked(state.showOnlyBookmarked || false);
                 setCompactView(state.compactView || false);
                 setSort(state.sort || { field: 'lastActionAt', dir: 'desc' });
@@ -730,6 +741,7 @@ export function PolicyUpdatesFeed() {
                         jurisdictionName,
                         showCongress,
                         showOnlyEnacted,
+                        showOnlyFailed,
                         sortField: sort.field,
                         sortDir: sort.dir
                     });
@@ -774,7 +786,7 @@ export function PolicyUpdatesFeed() {
         return () => {
             isMounted = false;
         };
-    }, [search, subject, classification, sort, jurisdictionName, showCongress, showOnlyBookmarked, bookmarks, sponsorId, showOnlyEnacted, compactView, didRestore.current]);
+    }, [search, subject, classification, sort, jurisdictionName, showCongress, showOnlyBookmarked, bookmarks, sponsorId, showOnlyEnacted, showOnlyFailed, compactView, didRestore.current]);
 
 
     // Intersection Observer for infinite scroll
@@ -837,6 +849,7 @@ export function PolicyUpdatesFeed() {
                 jurisdictionName,
                 showCongress,
                 showOnlyEnacted,
+                showOnlyFailed,
                 showOnlyBookmarked,
                 compactView,
                 updates
@@ -853,7 +866,7 @@ export function PolicyUpdatesFeed() {
                 console.error('Failed to save even minimal state:', retryError);
             }
         }
-    }, [search, subject, classification, sort, skip, searchInput, hasMore, jurisdictionName, showCongress, showOnlyEnacted, showOnlyBookmarked, compactView, updates]);
+    }, [search, subject, classification, sort, skip, searchInput, hasMore, jurisdictionName, showCongress, showOnlyEnacted, showOnlyFailed, showOnlyBookmarked, compactView, updates]);
 
     // Save compact view preference to localStorage separately for persistence
     useEffect(() => {
@@ -936,7 +949,7 @@ export function PolicyUpdatesFeed() {
     return (
         <>
             {/* Unified Filter Indicator */}
-            {(repFilter || sponsorId || showCongress || jurisdictionName || showOnlyEnacted) && (
+            {(repFilter || sponsorId || showCongress || jurisdictionName || showOnlyEnacted || showOnlyFailed) && (
                 <div className="mb-4 p-3 bg-primary/10 border border-primary/20 rounded-lg">
                     <div className="flex items-center justify-between">
                         <div className="flex items-center gap-2 flex-wrap">
@@ -959,6 +972,11 @@ export function PolicyUpdatesFeed() {
                                     Enacted into Law
                                 </Badge>
                             )}
+                            {showOnlyFailed && (
+                                <Badge variant="default" className="bg-red-600">
+                                    Failed/Vetoed
+                                </Badge>
+                            )}
                             <span className="text-sm text-muted-foreground">
                                 {repFilter
                                     ? `Showing bills sponsored by ${repFilter}`
@@ -970,7 +988,9 @@ export function PolicyUpdatesFeed() {
                                                 ? `Showing legislation from ${jurisdictionName} only`
                                                 : showOnlyEnacted
                                                     ? "Showing only bills that have been enacted into law"
-                                                    : ""}
+                                                    : showOnlyFailed
+                                                        ? "Showing only bills that have failed or been vetoed"
+                                                        : ""}
                             </span>
                         </div>
                         <Button
@@ -983,6 +1003,7 @@ export function PolicyUpdatesFeed() {
                                 setJurisdictionName("");
                                 setShowCongress(false);
                                 setShowOnlyEnacted(false);
+                                setShowOnlyFailed(false);
                                 setUpdates([]);
                                 setSkip(0);
                                 skipRef.current = 0;
@@ -1134,6 +1155,23 @@ export function PolicyUpdatesFeed() {
                     }}
                 >
                     <span className="ml-2">{showOnlyEnacted ? "Show All Bills" : "Enacted into Law"}</span>
+                </Button>
+
+                {/* Failed/Vetoed Legislation Filter */}
+                <Button
+                    variant={showOnlyFailed ? "default" : "outline"}
+                    className="w-full sm:w-auto"
+                    onClick={() => {
+                        setShowOnlyFailed(!showOnlyFailed);
+                        setUpdates([]);
+                        setSkip(0);
+                        skipRef.current = 0;
+                        setHasMore(true);
+                        setLoading(true);
+                    }}
+                >
+                    <XCircle className="mr-2 h-4 w-4" />
+                    <span>{showOnlyFailed ? "Show All Bills" : "Failed/Vetoed"}</span>
                 </Button>
                 {/* View Toggle Button */}
                 <Button

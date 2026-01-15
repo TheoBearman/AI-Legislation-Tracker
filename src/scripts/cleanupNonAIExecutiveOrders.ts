@@ -8,6 +8,12 @@
  */
 
 import { MongoClient } from 'mongodb';
+import { config } from 'dotenv';
+import path from 'path';
+
+// Load environment variables
+config({ path: path.resolve(process.cwd(), '.env.local') });
+config({ path: path.resolve(process.cwd(), '.env') });
 
 const AI_PATTERN = /artificial intelligence/i;
 
@@ -25,41 +31,45 @@ async function cleanupNonAIExecutiveOrders(dryRun: boolean = false) {
         const db = client.db(process.env.MONGODB_DB_NAME || 'statepulse');
         const executiveOrders = db.collection('executive_orders');
 
-        // Count total executive orders
-        const totalCount = await executiveOrders.countDocuments();
-        console.log(`Total executive orders in database: ${totalCount}`);
+        // Get all executive orders
+        const allOrders = await executiveOrders.find({}).toArray();
+        console.log(`Found ${allOrders.length} executive orders to check`);
 
-        // Find executive orders that do NOT match AI criteria
-        const nonAIQuery = {
-            $and: [
-                { title: { $not: AI_PATTERN } },
-                { summary: { $not: AI_PATTERN } },
-                { full_text: { $not: AI_PATTERN } },
-                { geminiSummary: { $not: AI_PATTERN } }
-            ]
-        };
+        let removedCount = 0;
+        let keptCount = 0;
 
-        const nonAICount = await executiveOrders.countDocuments(nonAIQuery);
-        console.log(`Non-AI executive orders to remove: ${nonAICount}`);
+        for (const order of allOrders) {
+            const title = (order.title || '').toLowerCase();
+            const summary = (order.summary || '').toLowerCase();
 
-        // Count AI executive orders for verification
-        const aiCount = totalCount - nonAICount;
-        console.log(`AI executive orders to keep: ${aiCount}`);
+            // Check for explicit AI mentions
+            const hasAI =
+                title.includes('artificial intelligence') ||
+                /\bai\b/i.test(order.title || '') ||
+                summary.includes('artificial intelligence') ||
+                /\bai\b/i.test(order.summary || '');
+
+            if (!hasAI) {
+                if (dryRun) {
+                    console.log(`[DRY RUN] Would remove: ${order.number || order.orderNumber || 'No number'}: ${order.title?.substring(0, 80)}...`);
+                } else {
+                    console.log(`❌ Removing: ${order.number || order.orderNumber || 'No number'}: ${order.title?.substring(0, 80)}...`);
+                    await executiveOrders.deleteOne({ _id: order._id });
+                }
+                removedCount++;
+            } else {
+                console.log(`✅ Keeping: ${order.number || order.orderNumber || 'No number'}: ${order.title?.substring(0, 80)}...`);
+                keptCount++;
+            }
+        }
 
         if (dryRun) {
-            console.log('\n[DRY RUN] No changes made. Run without --dry-run to execute deletion.');
-
-            // Show some examples of what would be deleted
-            const samples = await executiveOrders.find(nonAIQuery).limit(5).toArray();
-            console.log('\nSample non-AI executive orders that would be deleted:');
-            samples.forEach(order => {
-                console.log(`  - ${order.orderNumber || order.id}: ${order.title?.substring(0, 80)}...`);
-            });
+            console.log(`\n[DRY RUN] Would remove ${removedCount} non-AI executive orders`);
+            console.log(`[DRY RUN] Would keep ${keptCount} AI-related executive orders`);
         } else {
-            // Delete non-AI executive orders
-            console.log('\nDeleting non-AI executive orders...');
-            const result = await executiveOrders.deleteMany(nonAIQuery);
-            console.log(`Deleted ${result.deletedCount} non-AI executive order documents.`);
+            console.log(`\n=== Cleanup Complete ===`);
+            console.log(`✅ Kept (AI-related): ${keptCount}`);
+            console.log(`❌ Removed (non-AI): ${removedCount}`);
 
             // Verify remaining count
             const remainingCount = await executiveOrders.countDocuments();

@@ -50,8 +50,10 @@ cd state-pulse
 ### Install Dependencies
 
 ```bash
-npm install
+npm install --legacy-peer-deps
 ```
+
+> **Note:** The `--legacy-peer-deps` flag resolves peer dependency conflicts between React 19.2.1 and Clerk's requirements. This is safe and won't affect functionality.
 
 ### Configure Environment Variables
 

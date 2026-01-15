@@ -13,7 +13,7 @@ const CONGRESS_API_KEY = process.env.US_CONGRESS_API_KEY;
 const CONGRESS_API_BASE_URL = 'https://api.congress.gov/v3';
 
 const HISTORICAL_CONGRESS_SESSIONS = [
-  119
+  119, 118, 117, 116
 ];
 
 function toMongoDate(
@@ -567,9 +567,26 @@ async function main() {
     console.log("--- For new bills: inserted complete records ---");
     console.log("\nClearing progress file (all done!)...");
     clearProgress();
-  }
+    process.exit(0);
+  } else {
+    // Rate limit hit - schedule automatic restart in 1 hour
+    const ONE_HOUR = 60 * 60 * 1000; // 1 hour in milliseconds
+    const restartTime = new Date(Date.now() + ONE_HOUR);
 
-  process.exit(rateLimitHit ? 1 : 0);
+    console.log('\n=== Rate Limit Hit - Auto-Restart Scheduled ===');
+    console.log(`Progress saved to: ${PROGRESS_FILE}`);
+    console.log(`Will automatically restart at: ${restartTime.toLocaleString()}`);
+    console.log('Waiting 1 hour for API rate limit to reset...\n');
+
+    // Wait 1 hour
+    await delay(ONE_HOUR);
+
+    console.log('\n=== Restarting Congress Bill Fetch ===');
+    console.log('API rate limit should be reset now.\n');
+
+    // Recursively call main to restart
+    return main();
+  }
 }
 
 main().catch(err => {

@@ -38,8 +38,25 @@ const DATA_DIR = path.resolve(process.cwd(), 'data/openstates');
 const DUMP_FILE = path.join(DATA_DIR, '2026-01-public.pgdump');
 const PG_DATABASE = 'openstates_import';
 
-// AI content detection
-const AI_KEYWORDS = ['artificial intelligence', 'generative ai', 'automated decision', 'algorithm', 'machine learning'];
+// AI content detection - using specific terms to avoid false positives
+const AI_KEYWORDS = [
+    'artificial intelligence',
+    'generative ai',
+    'machine learning',
+    'deep learning',
+    'neural network',
+    'large language model',
+    'llm',
+    'chatgpt',
+    'deepfake',
+    'facial recognition',
+    'biometric',
+    'automated decision making',
+    'algorithmic bias',
+    'ai system',
+    'ai model',
+    'ai technology'
+];
 
 function displayOpenStatesId(id: string): string {
     if (id.startsWith('ocd-bill/')) {
@@ -117,10 +134,13 @@ async function importAIBills(pool: Pool): Promise<void> {
     console.log(`Target MongoDB: ${displayUri} (configured in .env.local)\n`);
 
 
-    // Build the WHERE clause for AI keywords
-    const aiConditions = AI_KEYWORDS.map(kw =>
-        `(b.title ILIKE '%${kw}%' OR bs.abstract ILIKE '%${kw}%')`
-    ).join(' OR ');
+    // Build the WHERE clause for explicit AI mentions only
+    const aiConditions = `(
+        b.title ILIKE '%artificial intelligence%' OR 
+        bs.abstract ILIKE '%artificial intelligence%' OR
+        b.title ~* '\\mai\\M' OR
+        bs.abstract ~* '\\mai\\M'
+    )`;
 
     // Query for AI-related bills with all their data
     const query = `

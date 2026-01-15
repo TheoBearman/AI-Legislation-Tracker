@@ -1,0 +1,41 @@
+name: Daily Database Update
+
+on:
+  schedule:
+    # Run daily at 3 AM UTC
+    - cron: '0 3 * * *'
+  workflow_dispatch: # Allow manual trigger from GitHub UI
+
+jobs:
+  update-database:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm install --legacy-peer-deps
+
+      - name: Run daily update script
+        env:
+          MONGODB_URI: ${{ secrets.MONGODB_URI }}
+          OPENSTATES_API_KEY: ${{ secrets.OPENSTATES_API_KEY }}
+          US_CONGRESS_API_KEY: ${{ secrets.US_CONGRESS_API_KEY }}
+        run: npx tsx src/scripts/dailyUpdate.ts
+
+      - name: Upload logs on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: update-logs-${{ github.run_number }}
+          path: |
+            data/daily_update_state.json
+          retention-days: 7

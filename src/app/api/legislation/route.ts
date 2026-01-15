@@ -1,5 +1,5 @@
-import {NextResponse} from 'next/server';
-import {addLegislation, getAllLegislationWithFiltering} from '@/services/legislationService';
+import { NextResponse } from 'next/server';
+import { addLegislation, getAllLegislationWithFiltering } from '@/services/legislationService';
 
 export async function POST(request: Request) {
   try {
@@ -25,6 +25,7 @@ export async function GET(request: Request) {
       showCongress: searchParams.get('showCongress') === 'true',
       sponsorId: searchParams.get('sponsorId') || undefined,
       showOnlyEnacted: searchParams.get('showOnlyEnacted') || undefined,
+      showOnlyFailed: searchParams.get('showOnlyFailed') || undefined,
       session: searchParams.get('session') || undefined,
       identifier: searchParams.get('identifier') || undefined,
       jurisdiction: searchParams.get('jurisdiction') || undefined,

@@ -262,6 +262,7 @@ export async function getAllLegislationWithFiltering({
   showCongress = false,
   sponsorId,
   showOnlyEnacted,
+  showOnlyFailed,
   session,
   identifier,
   jurisdiction,
@@ -289,6 +290,7 @@ export async function getAllLegislationWithFiltering({
   showCongress?: boolean;
   sponsorId?: string;
   showOnlyEnacted?: string;
+  showOnlyFailed?: string;
   session?: string;
   identifier?: string;
   jurisdiction?: string;
@@ -325,6 +327,11 @@ export async function getAllLegislationWithFiltering({
     // Add enacted filter if showOnlyEnacted param is present
     if (showOnlyEnacted === 'true') {
       otherFilters.enactedAt = { $ne: null };
+    }
+
+    // Add failed filter if showOnlyFailed param is present
+    if (showOnlyFailed === 'true') {
+      otherFilters.failedAt = { $ne: null };
     }
 
     // Parse sorting parameters with context-aware logic

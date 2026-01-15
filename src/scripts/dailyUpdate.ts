@@ -85,9 +85,8 @@ function loadState(): UpdateState {
     } catch (error) {
         console.warn('Failed to load state file, using defaults.');
     }
-    const yesterday = new Date();
-    yesterday.setDate(yesterday.getDate() - 1);
-    return { lastRun: yesterday.toISOString().split('T')[0] };
+    // Default to 2026-01-01 if no state file exists (first run)
+    return { lastRun: '2026-01-01' };
 }
 
 function saveState(state: UpdateState) {
@@ -248,10 +247,13 @@ async function updateStateBills(updatedSince: string) {
 
     let totalUpdated = 0;
     let totalNewAi = 0;
+    let totalSkippedStates = 0;
+    const cutoffTime = new Date(updatedSince).getTime();
 
     for (const stateMeta of STATE_OCD_IDS) {
         let page = 1;
         let hasMore = true;
+        let stateHadUpdates = false;
 
         while (hasMore) {
             const url = `${OPENSTATES_API_BASE_URL}/bills?jurisdiction=${stateMeta.ocdId}&updated_since=${updatedSince}&sort=updated_desc&page=${page}&per_page=20&apikey=${OPENSTATES_API_KEY}&include=abstracts&include=sponsorships&include=actions`;
@@ -266,7 +268,20 @@ async function updateStateBills(updatedSince: string) {
 
                 if (bills.length === 0) break;
 
+                // Early exit optimization: check if oldest bill on this page is before cutoff
+                let shouldContinue = false;
+
                 for (const bill of bills) {
+                    const billUpdatedAt = bill.updated_at ? new Date(bill.updated_at).getTime() : 0;
+
+                    // If this bill is older than our cutoff, we can stop for this state
+                    // (since results are sorted by updated_desc)
+                    if (billUpdatedAt < cutoffTime) {
+                        hasMore = false;
+                        break;
+                    }
+
+                    shouldContinue = true;
                     const mongoId = displayOpenStatesId(bill.id);
                     const existing = await getLegislationById(mongoId);
 
@@ -283,13 +298,21 @@ async function updateStateBills(updatedSince: string) {
                         transformed.geminiSummary = existing.geminiSummary;
                         await upsertLegislation(transformed);
                         totalUpdated++;
+                        stateHadUpdates = true;
                     } else if (isAiRelevant) {
                         const transformed = transformOpenStatesBill(bill, classification);
                         transformed.geminiSummary = null;
                         await upsertLegislation(transformed);
                         console.log(`  [NEW AI] ${stateMeta.abbr} ${bill.identifier}: ${bill.title.substring(0, 50)}...`);
                         totalNewAi++;
+                        stateHadUpdates = true;
                     }
+                }
+
+                // If we didn't process any bills on this page, we can stop
+                if (!shouldContinue) {
+                    hasMore = false;
+                    break;
                 }
 
                 if (data.pagination && data.pagination.page < data.pagination.max_page) {
@@ -302,9 +325,15 @@ async function updateStateBills(updatedSince: string) {
                 hasMore = false;
             }
         }
+
+        if (!stateHadUpdates) {
+            totalSkippedStates++;
+        }
     }
     console.log(`State Bills Update Complete: ${totalUpdated} updated, ${totalNewAi} new AI bills.`);
+    console.log(`States with no updates: ${totalSkippedStates}/${STATE_OCD_IDS.length}`);
 }
+
 
 async function updateStateVotes(updatedSince: string) {
     if (!OPENSTATES_API_KEY) return;

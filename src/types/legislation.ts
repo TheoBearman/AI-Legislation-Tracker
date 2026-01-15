@@ -64,6 +64,8 @@ export interface Legislation {
   }
   // Performance optimization field
   enactedAt?: Date | null; // Date when the legislation was enacted (null if not enacted)
+  failedAt?: Date | null; // Date when the legislation failed (null if not failed)
+  _id?: ObjectId;
   enactedFieldUpdatedAt?: Date; // When the enactedAt field was last computed
 }
 
@@ -176,6 +178,42 @@ export const enactedPatterns = [
   /statutes of \d{4}/i
 ];
 
+// Patterns that indicate a bill has failed (vetoed or defeated)
+export const failedPatterns: RegExp[] = [
+  // Veto patterns
+  /vetoed.*by.*(governor|president)/i,
+  /(governor|president).*vetoed/i,
+  /veto.*sustained/i,
+  /override.*veto.*failed/i,
+  /motion.*override.*failed/i,
+  /failed.*override.*veto/i,
+  /pocket.*veto/i,
+  /returned.*without.*signature/i,
+
+  // Defeat/rejection patterns - made more specific
+  /failed.*passage/i,
+  /failed.*(final|third).*passage/i,
+  /motion.*(to\s+pass|for\s+passage).*failed/i,
+  /bill.*defeated/i,
+  /motion.*defeated/i,
+  /bill.*rejected/i,
+  /motion.*rejected/i,
+  /failed.*third.*reading/i,
+  /failed.*final.*reading/i,
+  /vote.*failed/i,
+  /did.*not.*pass/i,
+  /failed.*to.*pass/i,
+  /motion.*lost/i,
+  /indefinitely.*postponed/i,
+  /postponed.*indefinitely/i,
+  /died.*in.*committee/i,
+  /failed.*concurrence/i,
+  /conference.*report.*rejected/i,
+  /amendments.*disagreed/i,
+  /bill.*withdrawn/i,
+  /bill.*killed/i
+];
+
 // AI-Focused Broad Topics
 export const BROAD_TOPIC_KEYWORDS: Record<string, string[]> = {
   'AI Safety & Regulation': [
@@ -225,8 +263,9 @@ export const BROAD_TOPIC_KEYWORDS: Record<string, string[]> = {
     'strategic competition'
   ],
   'Cybersecurity': [
-    'cybersecurity', 'cyber threat', 'vulnerability', 'hacking', 'malware',
-    'incident response', 'critical infrastructure', 'information security'
+    'cybersecurity', 'cyber attack', 'cyber security', 'vulnerability', 'hacking', 'malware',
+    'incident response', 'critical infrastructure', 'information security', 'data breach',
+    'ransomware', 'phishing', 'network security'
   ]
 };
 

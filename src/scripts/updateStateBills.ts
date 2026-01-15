@@ -159,33 +159,46 @@ async function updateStateBills() {
         process.exit(1);
     }
 
+    // Optional: Limit to specific states via command line args
+    // Usage: npx tsx src/scripts/updateStateBills.ts CA TX NY
+    const targetStates = process.argv.slice(2);
+    const statesToProcess = targetStates.length > 0
+        ? STATE_OCD_IDS.filter(s => targetStates.includes(s.abbr))
+        : STATE_OCD_IDS;
+
     console.log(`\n=== Updating State Bills (Since ${UPDATED_SINCE}) ===`);
+    if (targetStates.length > 0) {
+        console.log(`Target states: ${targetStates.join(', ')}`);
+    }
 
     let processedCount = 0;
     let updatedCount = 0;
     let newAiCount = 0;
+    let skippedStates = 0;
+    const cutoffTime = new Date(UPDATED_SINCE).getTime();
 
     // Process each state
-    for (const state of STATE_OCD_IDS) {
+    for (const state of statesToProcess) {
         console.log(`\nChecking updates for ${state.abbr}...`);
 
         let page = 1;
         let hasMore = true;
+        let stateHadUpdates = false;
 
         while (hasMore) {
             console.log(`  Fetching page ${page} for ${state.abbr}...`);
             const url = `${OPENSTATES_API_BASE_URL}/bills?jurisdiction=${state.ocdId}&updated_since=${UPDATED_SINCE}&sort=updated_desc&page=${page}&per_page=20&apikey=${OPENSTATES_API_KEY}&include=abstracts&include=sponsorships&include=actions`;
 
             try {
-                // Rate limit handling (simple)
-                await delay(200);
+                // Increased delay to reduce rate limit hits
+                await delay(500); // Increased from 200ms to 500ms
 
                 const response = await fetch(url);
 
                 if (response.status === 429) {
-                    console.log('Rate limit hit. Waiting 60s...');
-                    await delay(60000);
-                    continue;
+                    console.log('⚠️  Rate limit hit. Waiting 2 minutes...');
+                    await delay(120000); // Wait 2 minutes instead of 1
+                    continue; // Retry the same page
                 }
 
                 if (!response.ok) {
@@ -204,8 +217,21 @@ async function updateStateBills() {
                     break;
                 }
 
+                // EARLY EXIT OPTIMIZATION: Check if bills are older than cutoff
+                let shouldContinue = false;
+
                 // Process bills
                 for (const bill of bills) {
+                    const billUpdatedAt = bill.updated_at ? new Date(bill.updated_at).getTime() : 0;
+
+                    // If this bill is older than our cutoff, stop processing this state
+                    if (billUpdatedAt < cutoffTime) {
+                        console.log(`  ⏭️  Reached bills older than ${UPDATED_SINCE}, skipping remaining pages for ${state.abbr}`);
+                        hasMore = false;
+                        break;
+                    }
+
+                    shouldContinue = true;
                     const mongoId = displayOpenStatesId(bill.id);
                     const existing = await getLegislationById(mongoId);
 
@@ -217,6 +243,7 @@ async function updateStateBills() {
                         await upsertLegislation(transformed);
                         console.log(`[UPDATE] ${state.abbr}: ${bill.identifier} updated.`);
                         updatedCount++;
+                        stateHadUpdates = true;
                     } else {
                         const isAi = checkIsAiBill(bill);
                         if (isAi) {
@@ -225,8 +252,15 @@ async function updateStateBills() {
                             await upsertLegislation(transformed);
                             console.log(`[NEW] ${state.abbr}: ${bill.identifier} found (AI).`);
                             newAiCount++;
+                            stateHadUpdates = true;
                         }
                     }
+                }
+
+                // If we didn't process any bills on this page, stop
+                if (!shouldContinue) {
+                    hasMore = false;
+                    break;
                 }
 
                 processedCount += bills.length;
@@ -241,12 +275,17 @@ async function updateStateBills() {
                 hasMore = false;
             }
         }
+
+        if (!stateHadUpdates) {
+            skippedStates++;
+        }
     }
 
     console.log(`\n=== Update Complete ===`);
     console.log(`Processed ${processedCount} updated bills from API.`);
     console.log(`Updated ${updatedCount} existing AI bills.`);
     console.log(`Found ${newAiCount} NEW AI bills.`);
+    console.log(`States with no updates: ${skippedStates}/${statesToProcess.length}`);
 
     process.exit(0);
 }
