@@ -972,11 +972,7 @@ export function PolicyUpdatesFeed() {
                                     Enacted into Law
                                 </Badge>
                             )}
-                            {showOnlyFailed && (
-                                <Badge variant="default" className="bg-red-600">
-                                    Failed/Vetoed
-                                </Badge>
-                            )}
+
                             <span className="text-sm text-muted-foreground">
                                 {repFilter
                                     ? `Showing bills sponsored by ${repFilter}`
@@ -988,9 +984,8 @@ export function PolicyUpdatesFeed() {
                                                 ? `Showing legislation from ${jurisdictionName} only`
                                                 : showOnlyEnacted
                                                     ? "Showing only bills that have been enacted into law"
-                                                    : showOnlyFailed
-                                                        ? "Showing only bills that have failed or been vetoed"
-                                                        : ""}
+                                                    : ""}
+
                             </span>
                         </div>
                         <Button
@@ -1157,22 +1152,7 @@ export function PolicyUpdatesFeed() {
                     <span className="ml-2">{showOnlyEnacted ? "Show All Bills" : "Enacted into Law"}</span>
                 </Button>
 
-                {/* Failed/Vetoed Legislation Filter */}
-                <Button
-                    variant={showOnlyFailed ? "default" : "outline"}
-                    className="w-full sm:w-auto"
-                    onClick={() => {
-                        setShowOnlyFailed(!showOnlyFailed);
-                        setUpdates([]);
-                        setSkip(0);
-                        skipRef.current = 0;
-                        setHasMore(true);
-                        setLoading(true);
-                    }}
-                >
-                    <XCircle className="mr-2 h-4 w-4" />
-                    <span>{showOnlyFailed ? "Show All Bills" : "Failed/Vetoed"}</span>
-                </Button>
+
                 {/* View Toggle Button */}
                 <Button
                     variant={compactView ? "default" : "outline"}

@@ -285,21 +285,40 @@ async function updateStateBills(updatedSince: string) {
                     const mongoId = displayOpenStatesId(bill.id);
                     const existing = await getLegislationById(mongoId);
 
-                    const classification = classifyLegislationForFetch({
-                        title: bill.title,
-                        summary: bill.abstracts?.[0]?.abstract,
-                        abstracts: bill.abstracts
-                    });
+                    // Use strict AI filter - only bills with explicit AI mentions
+                    const title = bill.title || '';
+                    const summary = bill.abstracts?.[0]?.abstract || '';
+                    const abstracts = bill.abstracts || [];
 
-                    const isAiRelevant = classification && classification.topicClassification.broadTopics.length > 0;
+                    const hasExplicitAI =
+                        title.toLowerCase().includes('artificial intelligence') ||
+                        /\bai\b/i.test(title) ||
+                        summary.toLowerCase().includes('artificial intelligence') ||
+                        /\bai\b/i.test(summary) ||
+                        abstracts.some((a: any) =>
+                            (a.abstract || '').toLowerCase().includes('artificial intelligence') ||
+                            /\bai\b/i.test(a.abstract || '')
+                        );
 
                     if (existing) {
+                        // Update existing bill regardless of AI status (it's already in DB)
+                        const classification = classifyLegislationForFetch({
+                            title: bill.title,
+                            summary: bill.abstracts?.[0]?.abstract,
+                            abstracts: bill.abstracts
+                        });
                         const transformed = transformOpenStatesBill(bill, classification || existing);
                         transformed.geminiSummary = existing.geminiSummary;
                         await upsertLegislation(transformed);
                         totalUpdated++;
                         stateHadUpdates = true;
-                    } else if (isAiRelevant) {
+                    } else if (hasExplicitAI) {
+                        // Only insert new bills if they explicitly mention AI
+                        const classification = classifyLegislationForFetch({
+                            title: bill.title,
+                            summary: bill.abstracts?.[0]?.abstract,
+                            abstracts: bill.abstracts
+                        });
                         const transformed = transformOpenStatesBill(bill, classification);
                         transformed.geminiSummary = null;
                         await upsertLegislation(transformed);
@@ -507,21 +526,18 @@ async function updateCongressBills(updatedSince: string) {
                 const detailData: any = await detailResponse.json();
                 const congressBill = detailData.bill;
 
-                // AI Check
-                const classification = classifyLegislationForFetch({
-                    title: congressBill.title,
-                    summary: congressBill.summaries?.[0]?.text
-                });
+                // Strict AI Check - only bills with explicit AI mentions
+                const title = congressBill.title || '';
+                const summary = congressBill.summaries?.[0]?.text || '';
 
-                const isAiRelevant = classification && classification.topicClassification.broadTopics.length > 0;
+                const hasExplicitAI =
+                    title.toLowerCase().includes('artificial intelligence') ||
+                    /\bai\b/i.test(title) ||
+                    summary.toLowerCase().includes('artificial intelligence') ||
+                    /\bai\b/i.test(summary);
 
                 if (existing) {
                     // Update existing bill (always, to capture status changes)
-                    // We need full text if available? Just use existing transform logic.
-                    // We might need to fetch actions/sponsors if transform requires them.
-                    // For speed, let's assume specific partial updates or full re-fetch.
-                    // The transformCongressBillToMongoDB requires actions/sponsors attached to object.
-
                     const actionsRes = await fetchWithRetry(`${CONGRESS_API_BASE_URL}/bill/${CURRENT_CONGRESS}/${bill.type.toLowerCase()}/${bill.number}/actions?api_key=${CONGRESS_API_KEY}&format=json`);
                     if (actionsRes.ok) congressBill.actions = await actionsRes.json();
 
@@ -531,8 +547,8 @@ async function updateCongressBills(updatedSince: string) {
 
                     await upsertLegislation(transformed);
                     processedCount++;
-                } else if (isAiRelevant) {
-                    // New AI Bill
+                } else if (hasExplicitAI) {
+                    // New AI Bill - only insert if it explicitly mentions AI
                     const actionsRes = await fetchWithRetry(`${CONGRESS_API_BASE_URL}/bill/${CURRENT_CONGRESS}/${bill.type.toLowerCase()}/${bill.number}/actions?api_key=${CONGRESS_API_KEY}&format=json`);
                     if (actionsRes.ok) congressBill.actions = await actionsRes.json();
 

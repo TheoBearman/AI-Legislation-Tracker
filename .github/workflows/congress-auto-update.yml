@@ -1,0 +1,73 @@
+name: Congress Legislation Auto-Update
+
+on:
+  schedule:
+    # Run at 07:00 UTC every day
+    - cron: '0 7 * * *'
+  workflow_dispatch: # Allow manual trigger
+
+jobs:
+  update-congress:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write # Allow committing progress back to repo
+
+    services:
+      mongodb:
+        image: mongo:latest
+        ports:
+          - 27017:27017
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Determine Last Run Date
+        id: get_date
+        run: |
+          # Default to Jan 15, 2026 at 07:00 UTC if no file exists
+          DEFAULT_DATE="2026-01-15T07:00:00Z"
+          
+          if [ -f data/congress-last-update.txt ]; then
+            LAST_RUN=$(cat data/congress-last-update.txt)
+            echo "Found last run date: $LAST_RUN"
+            echo "FROM_DATE=$LAST_RUN" >> $GITHUB_ENV
+          else
+            echo "No last run file found. Using default: $DEFAULT_DATE"
+            echo "FROM_DATE=$DEFAULT_DATE" >> $GITHUB_ENV
+          fi
+
+      - name: Run Congress Update Script
+        env:
+          MONGODB_URI: ${{ secrets.MONGODB_URI }}
+          US_CONGRESS_API_KEY: ${{ secrets.US_CONGRESS_API_KEY }}
+          OPENSTATES_API_KEY: ${{ secrets.OPENSTATES_API_KEY }}
+        run: |
+          echo "Fetching updates since: $FROM_DATE"
+          npx tsx src/scripts/fetchCongressBillsHistorical.ts --from-date "$FROM_DATE"
+
+      - name: Update Last Run Timestamp
+        if: success()
+        run: |
+          # Save current time (minus 1 hour buffer to be safe) as next run's start time
+          # Actually, using current time is fine if the script fetched everything up to now.
+          # To be safe, let's use the current UTC time.
+          date -u +"%Y-%m-%dT%H:%M:%SZ" > data/congress-last-update.txt
+
+      - name: Commit and Push Progress
+        if: success()
+        run: |
+          git config --global user.name "GitHub Action Bot"
+          git config --global user.email "actions@github.com"
+          git add data/congress-last-update.txt
+          # Only commit if there are changes
+          git diff --quiet && git diff --staged --quiet || (git commit -m "Update Congress last fetch timestamp" && git push)

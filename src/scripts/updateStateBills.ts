@@ -4,6 +4,7 @@ import { getCollection } from '@/lib/mongodb';
 import { config } from 'dotenv';
 import fetch from 'node-fetch';
 import path from 'path';
+import fs from 'fs';
 
 // Load env vars
 config({ path: path.resolve(process.cwd(), '.env.local') });
@@ -12,17 +13,57 @@ config({ path: path.resolve(process.cwd(), '.env') });
 const OPENSTATES_API_KEY = process.env.OPENSTATES_API_KEY;
 const OPENSTATES_API_BASE_URL = 'https://v3.openstates.org';
 const UPDATED_SINCE = '2026-01-01'; // Date of bulk dump approximately
+const PROGRESS_FILE = path.resolve(process.cwd(), 'data/state-update-progress.json');
 
-const AI_KEYWORDS = [
-    'artificial intelligence',
-    'generative ai',
-    'automated decision',
-    'machine learning',
-    'algorithm',
-    'facial recognition',
-    'deepfake',
-    'predictive policing'
-];
+// Progress tracking
+interface UpdateProgress {
+    completedStates: string[];
+    lastUpdated: string;
+}
+
+function loadProgress(): UpdateProgress {
+    try {
+        if (fs.existsSync(PROGRESS_FILE)) {
+            const data = fs.readFileSync(PROGRESS_FILE, 'utf-8');
+            return JSON.parse(data);
+        }
+    } catch (error) {
+        console.log('No existing progress file or error reading it.');
+    }
+    return { completedStates: [], lastUpdated: new Date().toISOString() };
+}
+
+function saveProgress(progress: UpdateProgress): void {
+    const dir = path.dirname(PROGRESS_FILE);
+    if (!fs.existsSync(dir)) {
+        fs.mkdirSync(dir, { recursive: true });
+    }
+    fs.writeFileSync(PROGRESS_FILE, JSON.stringify(progress, null, 2));
+}
+
+function clearProgress(): void {
+    if (fs.existsSync(PROGRESS_FILE)) {
+        fs.unlinkSync(PROGRESS_FILE);
+        console.log('Progress file cleared.');
+    }
+}
+
+// Strict AI filter - only explicit mentions of AI
+function hasExplicitAIMention(bill: any): boolean {
+    const title = (bill.title || '').toLowerCase();
+    const summary = (bill.summary || '').toLowerCase();
+    const abstracts = bill.abstracts || [];
+    const abstractText = abstracts.map((a: any) => (a.abstract || '')).join(' ').toLowerCase();
+
+    return (
+        title.includes('artificial intelligence') ||
+        /\bai\b/i.test(bill.title || '') ||
+        summary.includes('artificial intelligence') ||
+        /\bai\b/i.test(bill.summary || '') ||
+        abstractText.includes('artificial intelligence') ||
+        /\bai\b/i.test(abstractText)
+    );
+}
 
 function delay(ms: number) {
     return new Promise(resolve => setTimeout(resolve, ms));
@@ -159,12 +200,23 @@ async function updateStateBills() {
         process.exit(1);
     }
 
+    // Load progress
+    const progress = loadProgress();
+
     // Optional: Limit to specific states via command line args
     // Usage: npx tsx src/scripts/updateStateBills.ts CA TX NY
     const targetStates = process.argv.slice(2);
-    const statesToProcess = targetStates.length > 0
+    let statesToProcess = targetStates.length > 0
         ? STATE_OCD_IDS.filter(s => targetStates.includes(s.abbr))
         : STATE_OCD_IDS;
+
+    // Filter out already completed states (unless specific states were requested)
+    if (targetStates.length === 0) {
+        statesToProcess = statesToProcess.filter(s => !progress.completedStates.includes(s.abbr));
+        if (progress.completedStates.length > 0) {
+            console.log(`Resuming from previous run. Already completed: ${progress.completedStates.join(', ')}`);
+        }
+    }
 
     console.log(`\n=== Updating State Bills (Since ${UPDATED_SINCE}) ===`);
     if (targetStates.length > 0) {
@@ -184,6 +236,7 @@ async function updateStateBills() {
         let page = 1;
         let hasMore = true;
         let stateHadUpdates = false;
+        let consecutiveRateLimits = 0;
 
         while (hasMore) {
             console.log(`  Fetching page ${page} for ${state.abbr}...`);
@@ -196,10 +249,19 @@ async function updateStateBills() {
                 const response = await fetch(url);
 
                 if (response.status === 429) {
-                    console.log('⚠️  Rate limit hit. Waiting 2 minutes...');
-                    await delay(120000); // Wait 2 minutes instead of 1
+                    consecutiveRateLimits++;
+                    console.log(`⚠️  Rate limit hit (${consecutiveRateLimits}/5). Waiting 2 minutes...`);
+                    await delay(120000); // Wait 2 minutes
+
+                    if (consecutiveRateLimits >= 5) {
+                        console.error('\n🛑 Persistent rate limit hit. Exiting gracefully to allow cooldown.');
+                        console.log(`Progress saved up to: ${progress.completedStates.join(', ')}`);
+                        process.exit(1);
+                    }
                     continue; // Retry the same page
                 }
+                // Reset counter on success or other errors
+                consecutiveRateLimits = 0;
 
                 if (!response.ok) {
                     if (response.status === 404) {
@@ -245,7 +307,7 @@ async function updateStateBills() {
                         updatedCount++;
                         stateHadUpdates = true;
                     } else {
-                        const isAi = checkIsAiBill(bill);
+                        const isAi = hasExplicitAIMention(bill);
                         if (isAi) {
                             const transformed = transformOpenStatesBillToMongoDB(bill);
                             transformed.geminiSummary = null; // Ensuring explicit null
@@ -279,6 +341,13 @@ async function updateStateBills() {
         if (!stateHadUpdates) {
             skippedStates++;
         }
+
+        // Mark state as completed
+        if (!progress.completedStates.includes(state.abbr)) {
+            progress.completedStates.push(state.abbr);
+            progress.lastUpdated = new Date().toISOString();
+            saveProgress(progress);
+        }
     }
 
     console.log(`\n=== Update Complete ===`);
@@ -287,17 +356,22 @@ async function updateStateBills() {
     console.log(`Found ${newAiCount} NEW AI bills.`);
     console.log(`States with no updates: ${skippedStates}/${statesToProcess.length}`);
 
+    // Check if all states are done
+    const allStates = STATE_OCD_IDS.map(s => s.abbr);
+    const remainingStates = allStates.filter(s => !progress.completedStates.includes(s));
+
+    if (remainingStates.length === 0) {
+        console.log('\n✅ All states completed! Clearing progress file.');
+        clearProgress();
+    } else {
+        console.log(`\n⏸️  Outstanding states (${remainingStates.length}): ${remainingStates.join(', ')}`);
+        console.log(`Progress saved to: ${PROGRESS_FILE}`);
+        console.log('Run the script again to continue with remaining states.');
+    }
+
     process.exit(0);
 }
 
-function checkIsAiBill(bill: any): boolean {
-    const textFields = [
-        bill.title,
-        bill.abstracts?.map((a: any) => a.abstract).join(' '),
-        bill.summary
-    ].join(' ').toLowerCase();
-
-    return AI_KEYWORDS.some(kw => textFields.includes(kw));
-}
+// Removed - using hasExplicitAIMention instead
 
 updateStateBills().catch(console.error);

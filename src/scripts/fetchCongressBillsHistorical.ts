@@ -281,6 +281,7 @@ async function fetchHistoricalCongressBills(congressNumber: number, startOffset:
         // Process bills in parallel batches of 10
         const BATCH_SIZE = 10;
         for (let i = 0; i < data.bills.length; i += BATCH_SIZE) {
+          if (rateLimitHit) break;
           const batch = data.bills.slice(i, i + BATCH_SIZE);
 
           const results = await Promise.allSettled(batch.map(async (bill: any) => {
@@ -335,55 +336,77 @@ async function fetchHistoricalCongressBills(congressNumber: number, startOffset:
               console.log(`\nFound AI-related bill: ${bill.type} ${bill.number}`);
               // --- AI FILTERING END ---
 
-              const actionsResponse = await fetchWithRetry(`${CONGRESS_API_BASE_URL}/bill/${congressNumber}/${bill.type.toLowerCase()}/${bill.number}/actions?api_key=${CONGRESS_API_KEY}&format=json`);
+              // If bill exists, we might only want to update status/sponsors/history
+              // This optimisation saves fetching the huge text body if not needed
+              if (existingLegislation) {
+                // Note: In strict 'historical' mode, we might want to re-fetch text if missing?
+                // For now, let's assume if it exists, we just update metadata.
 
+                // Fetch Actions (History)
+                const actionsUrl = `${CONGRESS_API_BASE_URL}/bill/${congressNumber}/${bill.type.toLowerCase()}/${bill.number}/actions?api_key=${CONGRESS_API_KEY}&format=json&limit=250`;
+                const actionsResponse = await fetchWithRetry(actionsUrl);
+                let actionsData = { actions: [] };
+                if (actionsResponse.ok) {
+                  actionsData = await actionsResponse.json();
+                }
+
+                // Process and update
+                const history = processCongressHistory({ actions: actionsData });
+                const sponsors = processCongressSponsors(congressBill);
+                const enactedAt = detectEnactedDate(history);
+
+                await updateBillSponsorsAndHistory(billId, sponsors, history, enactedAt);
+                return 'processed';
+              }
+
+              // NEW BILL: Fetch full text
+              const textUrl = `${CONGRESS_API_BASE_URL}/bill/${congressNumber}/${bill.type.toLowerCase()}/${bill.number}/text?api_key=${CONGRESS_API_KEY}&format=json`;
+              const textResponse = await fetchWithRetry(textUrl);
+
+              if (textResponse.ok) {
+                congressBill.textVersions = await textResponse.json();
+              }
+
+              // Fetch Actions (History) for new bill
+              const actionsUrl = `${CONGRESS_API_BASE_URL}/bill/${congressNumber}/${bill.type.toLowerCase()}/${bill.number}/actions?api_key=${CONGRESS_API_KEY}&format=json&limit=250`;
+              const actionsResponse = await fetchWithRetry(actionsUrl);
               if (actionsResponse.ok) {
                 congressBill.actions = await actionsResponse.json();
               }
 
-              const sponsors = processCongressSponsors(congressBill);
-              const history = processCongressHistory(congressBill);
-              const enactedAt = detectEnactedDate(history);
+              const legislationToStore = transformCongressBillToMongoDB(congressBill);
+              legislationToStore.geminiSummary = null;
 
-              if (existingLegislation) {
-                await updateBillSponsorsAndHistory(billId, sponsors, history, enactedAt);
-                console.log(`Updated existing bill: ${bill.type} ${bill.number} (${congressNumber}th Congress)`);
+              if (legislationToStore.id) {
+                await upsertLegislation(legislationToStore);
+                console.log(`Inserted new bill: ${bill.type} ${bill.number} (${congressNumber}th Congress)`);
               } else {
-                console.log(`Bill ${bill.type} ${bill.number} doesn't exist. Inserting complete bill...`);
-
-                const textResponse = await fetchWithRetry(`${CONGRESS_API_BASE_URL}/bill/${congressNumber}/${bill.type.toLowerCase()}/${bill.number}/text?api_key=${CONGRESS_API_KEY}&format=json`);
-
-                if (textResponse.ok) {
-                  congressBill.textVersions = await textResponse.json();
-                }
-
-                // Summaries were already fetched during filtering check
-
-                const legislationToStore = transformCongressBillToMongoDB(congressBill);
-
-                // Ensure NO AI SUMMARY GENERATION triggers
-                legislationToStore.geminiSummary = null;
-
-                if (legislationToStore.id) {
-                  await upsertLegislation(legislationToStore);
-                  console.log(`Inserted new bill: ${bill.type} ${bill.number} (${congressNumber}th Congress)`);
-                } else {
-                  console.warn(`Skipping bill with missing ID: ${bill.type} ${bill.number}`);
-                }
+                console.warn(`Skipping bill with missing ID: ${bill.type} ${bill.number}`);
               }
 
               return 'processed';
-            } catch (transformError) {
-              console.error(`Error processing Congress bill ${bill.type} ${bill.number}:`, transformError);
+            } catch (processingError: any) {
+              // CRITICAL FIX: If it's a rate limit error, RE-THROW it so we can stop the batch
+              if (processingError.message && processingError.message.includes('Rate limit')) {
+                throw processingError;
+              }
+
+              console.error(`Error processing Congress bill ${bill.type} ${bill.number}:`, processingError);
               return null;
             }
           }));
+
+          // Check if any promise failed due to Rate Limit
+          const rateLimitFailure = results.find(r => r.status === 'rejected' && (r.reason?.message?.includes('Rate limit')));
+          if (rateLimitFailure && rateLimitFailure.status === 'rejected') {
+            throw rateLimitFailure.reason; // Throw to outer loop to trigger 1-hr wait
+          }
 
           // Count successful processing
           billsProcessed += results.filter(r => r.status === 'fulfilled' && r.value === 'processed').length;
 
           // Small delay between batches to avoid rate limiting
-          await delay(100);
+          await delay(2000); // Increased from 100ms to 2000ms
         }
 
         if (hasMore) {
@@ -487,11 +510,201 @@ Notes:
   return { specificCongress, startCongress, endCongress, runOnce };
 }
 
+// ... existing code ...
+
+/**
+ * Fetch bills updated since a specific date/time (Daily Update Mode)
+ * Filters for 117th Congress and later
+ */
+async function fetchDailyUpdates(fromDate: string): Promise<boolean> {
+  if (!CONGRESS_API_KEY) {
+    console.error("Error: CONGRESS_API_KEY environment variable is not set.");
+    return false;
+  }
+
+  console.log(`\n=== Starting Daily Update (Bills updated since ${fromDate}) ===`);
+
+  let offset = 0;
+  const limit = 250;
+  let hasMore = true;
+  let billsProcessed = 0;
+  let rateLimitHit = false;
+
+  // We use the ALL bills endpoint sorted by update date, filtered by fromDateTime
+  // Note: Congress.gov API documentation says /bill supports fromDateTime
+
+  while (hasMore) {
+    const url = `${CONGRESS_API_BASE_URL}/bill?api_key=${CONGRESS_API_KEY}&format=json&offset=${offset}&limit=${limit}&fromDateTime=${fromDate}&sort=updateDate_desc`;
+
+    console.log(`Fetching updates offset ${offset} from: ${url.replace(CONGRESS_API_KEY as string, 'REDACTED')}`);
+
+    try {
+      const response = await fetchWithRetry(url);
+      if (!response.ok) {
+        console.error(`Error fetching updates: ${response.status}`);
+        throw new Error(`HTTP Error: ${response.status}`);
+      }
+
+      const data: any = await response.json();
+
+      if (data.bills && data.bills.length > 0) {
+        // Filter for 117th Congress +
+        // The API returns bills from all congresses. We only want recent ones.
+        const recentBills = data.bills.filter((b: any) => {
+          return b.congress >= 117;
+        });
+
+        if (recentBills.length === 0 && data.bills.length > 0) {
+          console.log(`  (Batch has ${data.bills.length} bills, but none >= 117th Congress. Checking next batch...)`);
+        } else if (recentBills.length > 0) {
+          console.log(`  Processing ${recentBills.length} relevant bills (>= 117th Congress) from batch of ${data.bills.length}`);
+        }
+
+        // Process bills in parallel batches of 10
+        const BATCH_SIZE = 10;
+        for (let i = 0; i < recentBills.length; i += BATCH_SIZE) {
+          if (rateLimitHit) break;
+          const batch = recentBills.slice(i, i + BATCH_SIZE);
+
+          const results = await Promise.allSettled(batch.map(async (bill: any) => {
+            if (rateLimitHit) return null;
+            try {
+              const congressNumber = bill.congress;
+              const billId = `congress-bill-${congressNumber}-${bill.type.toLowerCase()}-${bill.number}`;
+
+              // Always fetch details for updates to ensure we get latest status
+              // Use existing logic? The existing logic inside loop is heavily tied to `congressNumber` variable from outer scope.
+              // We need to duplicate or adapt the processing logic.
+              // For brevity/DRY, I'll essentially copy the core logic here or refactor. 
+              // Given tool limitations, I will implement the core logic efficiently here.
+
+              const existingLegislation = await getLegislationById(billId);
+
+              // Fetch Detail
+              const detailUrl = `${CONGRESS_API_BASE_URL}/bill/${congressNumber}/${bill.type.toLowerCase()}/${bill.number}?api_key=${CONGRESS_API_KEY}&format=json`;
+              const detailResponse = await fetchWithRetry(detailUrl);
+
+              if (!detailResponse.ok) return null;
+              const detailData: any = await detailResponse.json();
+              const congressBill = detailData.bill;
+
+              if (existingLegislation) {
+                // Update existing
+                const actionsUrl = `${CONGRESS_API_BASE_URL}/bill/${congressNumber}/${bill.type.toLowerCase()}/${bill.number}/actions?api_key=${CONGRESS_API_KEY}&format=json&limit=250`;
+                const actionsResponse = await fetchWithRetry(actionsUrl);
+                let actionsData = { actions: [] };
+                if (actionsResponse.ok) actionsData = await actionsResponse.json();
+
+                const history = processCongressHistory({ actions: actionsData });
+                const sponsors = processCongressSponsors(congressBill);
+                const enactedAt = detectEnactedDate(history);
+
+                await updateBillSponsorsAndHistory(billId, sponsors, history, enactedAt);
+                return 'updated';
+              } else {
+                // New Bill - Check AI relevance first!
+                // Ideally we check AI relevance before full fetch, but we need details for that.
+                // We already fetched details (congressBill).
+
+                // --- AI FILTERING ---
+                const aiRegex = /artificial intelligence|generative ai|automated decision|algorithm/i;
+                let hasAiContent = false;
+                if (congressBill.title && aiRegex.test(congressBill.title)) hasAiContent = true;
+
+                if (!hasAiContent) {
+                  // Check summaries
+                  const summariesResponse = await fetchWithRetry(`${CONGRESS_API_BASE_URL}/bill/${congressNumber}/${bill.type.toLowerCase()}/${bill.number}/summaries?api_key=${CONGRESS_API_KEY}&format=json`);
+                  if (summariesResponse.ok) {
+                    const summaryData: any = await summariesResponse.json();
+                    congressBill.summaries = summaryData.summaries;
+                    if (congressBill.summaries?.some((s: any) => s.text && aiRegex.test(s.text))) {
+                      hasAiContent = true;
+                    }
+                  }
+                }
+
+                if (!hasAiContent) return 'skipped-not-ai';
+
+                console.log(`\nFound NEW AI-related bill: ${bill.type} ${bill.number}`);
+
+                // Fetch text
+                const textUrl = `${CONGRESS_API_BASE_URL}/bill/${congressNumber}/${bill.type.toLowerCase()}/${bill.number}/text?api_key=${CONGRESS_API_KEY}&format=json`;
+                const textResponse = await fetchWithRetry(textUrl);
+                if (textResponse.ok) congressBill.textVersions = await textResponse.json();
+
+                // Fetch Actions
+                const actionsUrl = `${CONGRESS_API_BASE_URL}/bill/${congressNumber}/${bill.type.toLowerCase()}/${bill.number}/actions?api_key=${CONGRESS_API_KEY}&format=json&limit=250`;
+                const actionsResponse = await fetchWithRetry(actionsUrl);
+                if (actionsResponse.ok) congressBill.actions = await actionsResponse.json();
+
+                const legislationToStore = transformCongressBillToMongoDB(congressBill);
+                legislationToStore.geminiSummary = null;
+
+                if (legislationToStore.id) {
+                  await upsertLegislation(legislationToStore);
+                  console.log(`Inserted new bill: ${bill.type} ${bill.number}`);
+                }
+                return 'inserted';
+              }
+
+            } catch (err: any) {
+              if (err.message && err.message.includes('Rate limit')) throw err;
+              console.error(`Error processing ${bill.type} ${bill.number}`, err);
+              return 'error';
+            }
+          }));
+
+          // Check for rate limit failures
+          const rateLimitFailure = results.find(r => r.status === 'rejected' && (r.reason?.message?.includes('Rate limit')));
+          if (rateLimitFailure && rateLimitFailure.status === 'rejected') {
+            throw rateLimitFailure.reason;
+          }
+
+          billsProcessed += results.filter(r => r.status === 'fulfilled' && (r.value === 'updated' || r.value === 'inserted')).length;
+          await delay(1000);
+        }
+
+        if (data.bills.length < limit) {
+          hasMore = false; // End of results
+        } else {
+          offset += limit;
+        }
+
+      } else {
+        hasMore = false;
+      }
+    } catch (error: any) {
+      if (error.message && error.message.includes('Rate limit')) {
+        console.log(`\n*** RATE LIMIT HIT during daily update ***`);
+        rateLimitHit = true;
+        break;
+      }
+      console.error("Error in daily update loop:", error);
+      break;
+    }
+  }
+
+  console.log(`\nDaily update completed. Processed/Updated ${billsProcessed} bills.`);
+  return !rateLimitHit;
+}
+
 async function main() {
   const { specificCongress, startCongress, endCongress } = parseArguments();
 
+  // NEW: Check for daily update flag or date
+  const args = process.argv.slice(2);
+  const fromDateIndex = args.indexOf('--from-date');
+
+  if (fromDateIndex !== -1 && args[fromDateIndex + 1]) {
+    const fromDate = args[fromDateIndex + 1];
+    await fetchDailyUpdates(fromDate);
+    process.exit(0);
+  }
+
+  // ... rest of existing main function ...
   // Check for saved progress
   const savedProgress = loadProgress();
+  // ... existing code ...
   let resumeFromCongress: number | null = null;
   let resumeFromOffset: number = 0;
   let completedCongresses: number[] = [];
