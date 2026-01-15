@@ -61,6 +61,7 @@ jobs:
           # Save current time (minus 1 hour buffer to be safe) as next run's start time
           # Actually, using current time is fine if the script fetched everything up to now.
           # To be safe, let's use the current UTC time.
+          mkdir -p data
           date -u +"%Y-%m-%dT%H:%M:%SZ" > data/congress-last-update.txt
 
       - name: Commit and Push Progress

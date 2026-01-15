@@ -607,7 +607,7 @@ async function fetchDailyUpdates(fromDate: string): Promise<boolean> {
                 // We already fetched details (congressBill).
 
                 // --- AI FILTERING ---
-                const aiRegex = /artificial intelligence|generative ai|automated decision|algorithm/i;
+                const aiRegex = /\bai\b|artificial intelligence/i;
                 let hasAiContent = false;
                 if (congressBill.title && aiRegex.test(congressBill.title)) hasAiContent = true;
 
