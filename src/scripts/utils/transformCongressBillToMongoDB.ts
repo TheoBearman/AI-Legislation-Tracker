@@ -1,41 +1,41 @@
 import { enactedPatterns } from "@/types/legislation";
 
 function toMongoDate(
-    dateInput: Date | { seconds: number; nanoseconds: number } | string | null | undefined
+  dateInput: Date | { seconds: number; nanoseconds: number } | string | null | undefined
 ): Date | null {
-    if (dateInput === null || typeof dateInput === 'undefined' || dateInput === '') {
-        return null;
-    }
-    if (dateInput instanceof Date) {
-        return isNaN(dateInput.getTime()) ? null : dateInput;
-    }
-    if (typeof dateInput === 'object' && 'seconds' in dateInput && 'nanoseconds' in dateInput) {
-        return new Date(dateInput.seconds * 1000);
-    }
-    if (typeof dateInput === 'string') {
-        const date = new Date(dateInput.split(' ')[0]);
-        return isNaN(date.getTime()) ? null : date;
-    }
+  if (dateInput === null || typeof dateInput === 'undefined' || dateInput === '') {
     return null;
+  }
+  if (dateInput instanceof Date) {
+    return isNaN(dateInput.getTime()) ? null : dateInput;
+  }
+  if (typeof dateInput === 'object' && 'seconds' in dateInput && 'nanoseconds' in dateInput) {
+    return new Date(dateInput.seconds * 1000);
+  }
+  if (typeof dateInput === 'string') {
+    const date = new Date(dateInput.split(' ')[0]);
+    return isNaN(date.getTime()) ? null : date;
+  }
+  return null;
 }
 
 function detectEnactedDate(history: any[]): Date | null {
-    if (!history || history.length === 0) return null;
-    const sortedHistory = [...history].sort((a, b) => {
-        const dateA = a.date ? new Date(a.date).getTime() : 0;
-        const dateB = b.date ? new Date(b.date).getTime() : 0;
-        return dateB - dateA;
-    });
-    for (const action of sortedHistory) {
-        const actionText = (action.action || '').trim();
-        if (!actionText) continue;
-        for (const pattern of enactedPatterns) {
-            if (pattern.test(actionText)) {
-                return action.date ? new Date(action.date) : null;
-            }
-        }
+  if (!history || history.length === 0) return null;
+  const sortedHistory = [...history].sort((a, b) => {
+    const dateA = a.date ? new Date(a.date).getTime() : 0;
+    const dateB = b.date ? new Date(b.date).getTime() : 0;
+    return dateB - dateA;
+  });
+  for (const action of sortedHistory) {
+    const actionText = (action.action || '').trim();
+    if (!actionText) continue;
+    for (const pattern of enactedPatterns) {
+      if (pattern.test(actionText)) {
+        return action.date ? new Date(action.date) : null;
+      }
     }
-    return null;
+  }
+  return null;
 }
 
 export function transformCongressBillToMongoDB(congressBill: any): any {
@@ -108,10 +108,10 @@ export function transformCongressBillToMongoDB(congressBill: any): any {
     note: 'Congress.gov',
   }];
   const summary = congressBill.summaries?.summaries?.[0]?.text ||
-                 congressBill.title || null;
+    congressBill.title || null;
   const chamber = congressBill.originChamber === 'House' ? 'lower' :
-                 congressBill.originChamber === 'Senate' ? 'upper' :
-                 congressBill.originChamber?.toLowerCase();
+    congressBill.originChamber === 'Senate' ? 'upper' :
+      congressBill.originChamber?.toLowerCase();
   const enactedAt = detectEnactedDate(history);
   return {
     id: `congress-bill-${congressBill.congress}-${congressBill.type.toLowerCase()}-${congressBill.number}`,
@@ -138,6 +138,7 @@ export function transformCongressBillToMongoDB(congressBill: any): any {
     createdAt: toMongoDate(congressBill.introducedDate) || now,
     updatedAt: toMongoDate(congressBill.updateDate) || now,
     summary: summary,
+    summaries: congressBill.summaries || [],  // Preserve full summaries array
     extras: {
       congress: congressBill.congress,
       billType: congressBill.type,
