@@ -302,7 +302,7 @@ async function fetchHistoricalCongressBills(congressNumber: number, startOffset:
               const congressBill = detailData.bill;
 
               // --- AI FILTERING START ---
-              const aiRegex = /artificial intelligence|generative ai|automated decision|algorithm/i;
+              const aiRegex = /\bai\b|artificial intelligence/i;
               let hasAiContent = false;
 
               // Check title
