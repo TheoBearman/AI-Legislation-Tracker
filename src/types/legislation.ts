@@ -40,6 +40,7 @@ export interface Legislation {
   versions?: any[];
   sources?: any[];
   abstracts?: any[];
+  summaries?: any[]; // Full summaries from Congress API with HTML content
   openstatesUrl?: string;
   congressUrl?: string;
   firstActionAt?: Date | null;

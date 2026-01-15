@@ -148,6 +148,7 @@ export default async function LegislationDetailPage({ params }: { params: { id: 
     versions,
     sources,
     abstracts,
+    summaries,
     openstatesUrl,
     firstActionAt,
     latestActionAt,
@@ -283,8 +284,32 @@ export default async function LegislationDetailPage({ params }: { params: { id: 
               </h3>
               {abstracts.map((abstract, index) => (
                 <div key={index} className="p-3 border rounded-md bg-muted/50 mb-2">
-                  <p className="text-sm text-foreground break-words">{abstract.abstract}</p>
+                  <div
+                    className="text-sm text-foreground break-words prose prose-sm dark:prose-invert max-w-none"
+                    dangerouslySetInnerHTML={{ __html: abstract.abstract }}
+                  />
                   {abstract.note && <p className="text-xs text-muted-foreground mt-1 break-words">Note: {abstract.note}</p>}
+                </div>
+              ))}
+            </AnimatedSection>
+          )}
+
+          {summaries && summaries.length > 0 && (
+            <AnimatedSection>
+              <h3 className="text-xl font-semibold text-foreground mb-3 flex items-center">
+                <FileText className="mr-2 h-6 w-6 text-primary flex-shrink-0" /> Bill Summary
+              </h3>
+              {summaries.map((summary, index) => (
+                <div key={index} className="p-4 border rounded-md bg-muted/50 mb-3">
+                  <div
+                    className="text-sm text-foreground break-words prose prose-sm dark:prose-invert max-w-none"
+                    dangerouslySetInnerHTML={{ __html: summary.text }}
+                  />
+                  {summary.updateDate && (
+                    <p className="text-xs text-muted-foreground mt-2">
+                      Updated: {new Date(summary.updateDate).toLocaleDateString()}
+                    </p>
+                  )}
                 </div>
               ))}
             </AnimatedSection>
