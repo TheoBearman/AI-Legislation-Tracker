@@ -37,8 +37,8 @@ jobs:
           # Default to Jan 15, 2026 at 07:00 UTC if no file exists
           DEFAULT_DATE="2026-01-15T07:00:00Z"
           
-          if [ -f data/congress-last-update.txt ]; then
-            LAST_RUN=$(cat data/congress-last-update.txt)
+          if [ -f .github/congress-last-update.txt ]; then
+            LAST_RUN=$(cat .github/congress-last-update.txt)
             echo "Found last run date: $LAST_RUN"
             echo "FROM_DATE=$LAST_RUN" >> $GITHUB_ENV
           else
@@ -61,14 +61,13 @@ jobs:
           # Save current time (minus 1 hour buffer to be safe) as next run's start time
           # Actually, using current time is fine if the script fetched everything up to now.
           # To be safe, let's use the current UTC time.
-          mkdir -p data
-          date -u +"%Y-%m-%dT%H:%M:%SZ" > data/congress-last-update.txt
+          date -u +"%Y-%m-%dT%H:%M:%SZ" > .github/congress-last-update.txt
 
       - name: Commit and Push Progress
         if: success()
         run: |
           git config --global user.name "GitHub Action Bot"
           git config --global user.email "actions@github.com"
-          git add data/congress-last-update.txt
+          git add .github/congress-last-update.txt
           # Only commit if there are changes
           git diff --quiet && git diff --staged --quiet || (git commit -m "Update Congress last fetch timestamp" && git push)
