@@ -548,16 +548,16 @@ async function fetchDailyUpdates(fromDate: string): Promise<boolean> {
       const data: any = await response.json();
 
       if (data.bills && data.bills.length > 0) {
-        // Filter for 117th Congress +
+        // Filter for 119th Congress +
         // The API returns bills from all congresses. We only want recent ones.
         const recentBills = data.bills.filter((b: any) => {
-          return b.congress >= 117;
+          return b.congress >= 119;
         });
 
         if (recentBills.length === 0 && data.bills.length > 0) {
-          console.log(`  (Batch has ${data.bills.length} bills, but none >= 117th Congress. Checking next batch...)`);
+          console.log(`  (Batch has ${data.bills.length} bills, but none >= 119th Congress. Checking next batch...)`);
         } else if (recentBills.length > 0) {
-          console.log(`  Processing ${recentBills.length} relevant bills (>= 117th Congress) from batch of ${data.bills.length}`);
+          console.log(`  Processing ${recentBills.length} relevant bills (>= 119th Congress) from batch of ${data.bills.length}`);
         }
 
         // Process bills in parallel batches of 10
