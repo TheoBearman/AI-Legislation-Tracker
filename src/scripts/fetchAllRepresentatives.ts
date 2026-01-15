@@ -138,7 +138,7 @@ async function fetchRepresentativesForState(state: string): Promise<Representati
     }
     if (rate.count >= 10) {
       const wait = rate.lastMinute + 60 * 1000 - now;
-      console.log(`OpenStates API per-minute rate limit reached. Waiting ${Math.ceil(wait/1000)} seconds...`);
+      console.log(`OpenStates API per-minute rate limit reached. Waiting ${Math.ceil(wait / 1000)} seconds...`);
       await sleep(wait);
       rate.count = 0;
       rate.lastMinute = Date.now();
@@ -190,19 +190,19 @@ async function main() {
   const db = client.db(DB_NAME);
   const collection = db.collection(COLLECTION_NAME);
 
-  // for (const jurisdiction of JURISDICTIONS) {
-  //   console.log(`Fetching representatives for ${jurisdiction}...`);
-  //   const reps = await fetchRepresentativesForState(jurisdiction);
-  //   if (reps.length > 0) {
-  //     await collection.deleteMany({
-  //       jurisdiction: { $regex: new RegExp(jurisdiction, 'i') }
-  //     });
-  //     await collection.insertMany(reps);
-  //     console.log(`Stored ${reps.length} representatives for ${jurisdiction}`);
-  //   } else {
-  //     console.log(`No representatives found for ${jurisdiction}`);
-  //   }
-  // }
+  for (const jurisdiction of JURISDICTIONS) {
+    console.log(`Fetching representatives for ${jurisdiction}...`);
+    const reps = await fetchRepresentativesForState(jurisdiction);
+    if (reps.length > 0) {
+      await collection.deleteMany({
+        jurisdiction: { $regex: new RegExp(jurisdiction, 'i') }
+      });
+      await collection.insertMany(reps);
+      console.log(`Stored ${reps.length} representatives for ${jurisdiction}`);
+    } else {
+      console.log(`No representatives found for ${jurisdiction}`);
+    }
+  }
 
   for (const chamber of ['house', 'senate'] as const) {
     console.log(`Fetching US Congress ${chamber} members...`);

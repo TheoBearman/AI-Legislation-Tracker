@@ -21,8 +21,27 @@ export async function GET() {
     const currentCongressSession = `${congressNumber}th Congress`;
     const nextCongressSession = `${congressNumber + 1}th Congress`;
 
+    const AI_KEYWORDS = [
+      "artificial intelligence",
+      "automated decision",
+      "machine learning",
+      "generative ai",
+      "large language model",
+      "algorithm",
+      "facial recognition"
+    ];
+
+    const aiFilter = {
+      $or: [
+        { title: { $regex: AI_KEYWORDS.join("|"), $options: "i" } },
+        { description: { $regex: AI_KEYWORDS.join("|"), $options: "i" } },
+        { abstract: { $regex: AI_KEYWORDS.join("|"), $options: "i" } }
+      ]
+    };
+
     const allCongressQuery = {
-      jurisdictionName: "United States Congress"
+      jurisdictionName: "United States Congress",
+      ...aiFilter
     };
 
     const recentCongressQuery = {
@@ -138,11 +157,13 @@ export async function GET() {
     const topSponsors = await legislationCollection.aggregate([
       { $match: allCongressQuery },
       { $unwind: { path: "$sponsors", preserveNullAndEmptyArrays: true } },
-      { $group: {
-        _id: "$sponsors.name",
-        totalBills: { $sum: 1 },
-        recentBills: { $sum: 1 }
-      }},
+      {
+        $group: {
+          _id: "$sponsors.name",
+          totalBills: { $sum: 1 },
+          recentBills: { $sum: 1 }
+        }
+      },
       { $sort: { totalBills: -1 } },
       { $limit: 6 },
       {

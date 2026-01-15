@@ -1,7 +1,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { getCollection } from '@/lib/mongodb';
-import {FIPS_TO_ABBR, STATE_MAP} from '@/types/geo';
+import { FIPS_TO_ABBR, STATE_MAP } from '@/types/geo';
 import { validStates } from '@/types/geo';
 import { getStateAbbrFromString } from "@/lib/locationUtils";
 
@@ -65,8 +65,18 @@ export async function GET(request: NextRequest) {
 
       // console.log('[API] Geospatial lookup: foundDistricts:', JSON.stringify(foundDistricts, null, 2));
 
+      // If no districts found, try to fallback to state-based lookup if state info is available
       if (!foundDistricts.length) {
-        return NextResponse.json({ error: 'No districts found for this location.' }, { status: 404 });
+        // Check if we have state info in query params to fall back on
+        if (state || stateName) {
+          console.log('[API] Geospatial lookup failed (no districts found). Falling back to state-based lookup.');
+          // We will fall through to the logic below. 
+          // Ensure stateAbbr is set if possible from the params for the logic below to work optimally
+          if (state && state.length === 2 && !stateAbbr) stateAbbr = state.toUpperCase();
+          if (stateName && !stateAbbr && STATE_MAP[stateName]) stateAbbr = STATE_MAP[stateName];
+        } else {
+          return NextResponse.json({ error: 'No districts found for this location and no state provided.' }, { status: 404 });
+        }
       }
 
       // Build queries to find representatives for each district
@@ -221,7 +231,7 @@ export async function GET(request: NextRequest) {
         { error: 'Unable to determine state from address. Please include state abbreviation at the end (e.g., "123 Main St, Columbus, OH").' },
         { status: 400 }
       );
-    }  
+    }
 
     if (!validStates.includes(stateCode.toUpperCase())) {
       return NextResponse.json(

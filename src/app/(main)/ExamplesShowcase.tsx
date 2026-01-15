@@ -140,7 +140,7 @@ export default function ExamplesShowcase() {
         <AnimatedSection className="py-20 px-6 md:px-10 bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-blue-950/20 dark:to-indigo-950/20">
             <div className="container mx-auto">
                 <div className="text-center mb-12">
-                    <h2 className="text-4xl font-bold mb-4 tracking-tight">See StatePulse in Action</h2>
+                    <h2 className="text-4xl font-bold mb-4 tracking-tight">See AI Legislation Tracker in Action</h2>
                     <p className="text-muted-foreground text-lg max-w-2xl mx-auto leading-relaxed">
                         Get a glimpse of the detailed information and insights available on our platform.
                     </p>
@@ -365,7 +365,7 @@ export default function ExamplesShowcase() {
                 {/*/!* Call to Action *!/*/}
                 {/*<div className="text-center">*/}
                 {/*    <p className="text-muted-foreground mb-6">*/}
-                {/*        Ready to explore the full power of StatePulse?*/}
+                {/*        Ready to explore the full power of AI Legislation Tracker?*/}
                 {/*    </p>*/}
                 {/*    <div className="flex flex-col sm:flex-row gap-4 justify-center">*/}
                 {/*        <Button asChild size="lg">*/}

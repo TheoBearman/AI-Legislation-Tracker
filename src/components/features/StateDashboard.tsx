@@ -85,7 +85,7 @@ export function StateDashboard({ stateData, loading, error, isCongressDashboard,
                                                     <span className="sm:hidden">U.S. Congress</span>
                                                 </Badge>
                                                 <span className="text-xs md:text-sm text-muted-foreground">
-                                                    <span className="hidden sm:inline">Showing federal legislation only</span>
+                                                    <span className="hidden sm:inline">Showing federal AI legislation only</span>
                                                     <span className="sm:hidden">Federal data only</span>
                                                 </span>
                                             </>
@@ -96,8 +96,8 @@ export function StateDashboard({ stateData, loading, error, isCongressDashboard,
                                                     <span className="sm:hidden">{stateParam || stateAbbrParam}</span>
                                                 </Badge>
                                                 <span className="text-xs md:text-sm text-muted-foreground">
-                                                    <span className="hidden sm:inline">Showing data for {stateParam || stateAbbrParam} only</span>
-                                                    <span className="sm:hidden">State data only</span>
+                                                    <span className="hidden sm:inline">Showing AI data for {stateParam || stateAbbrParam} only</span>
+                                                    <span className="sm:hidden">State AI data only</span>
                                                 </span>
                                             </>
                                         )}
@@ -119,7 +119,7 @@ export function StateDashboard({ stateData, loading, error, isCongressDashboard,
                                 <div className="flex items-center space-x-2">
                                     <FileText className="h-4 w-4 md:h-5 md:w-5 text-blue-500 flex-shrink-0" />
                                     <div className="min-w-0">
-                                        <p className="text-xs md:text-sm font-medium truncate"><span className="hidden sm:inline">Total Legislation</span><span className="sm:hidden">Total Bills</span></p>
+                                        <p className="text-xs md:text-sm font-medium truncate"><span className="hidden sm:inline">Total AI Legislation</span><span className="sm:hidden">Total AI Bills</span></p>
                                         <p className="text-lg md:text-2xl font-bold">{stateData.statistics.totalLegislation.toLocaleString()}</p>
                                     </div>
                                 </div>
@@ -130,7 +130,7 @@ export function StateDashboard({ stateData, loading, error, isCongressDashboard,
                                 <div className="flex items-center space-x-2">
                                     <TrendingUp className="h-4 w-4 md:h-5 md:w-5 text-green-500 flex-shrink-0" />
                                     <div className="min-w-0">
-                                        <p className="text-xs md:text-sm font-medium truncate"><span className="hidden sm:inline">Recent Activity</span><span className="sm:hidden">Recent</span></p>
+                                        <p className="text-xs md:text-sm font-medium truncate"><span className="hidden sm:inline">Recent AI Activity</span><span className="sm:hidden">Recent AI</span></p>
                                         <p className="text-lg md:text-2xl font-bold">{stateData.statistics.recentActivity.toLocaleString()}</p>
                                         <p className="text-xs text-muted-foreground"><span className="hidden sm:inline">Last 30 days</span><span className="sm:hidden">30d</span></p>
                                     </div>
@@ -142,7 +142,7 @@ export function StateDashboard({ stateData, loading, error, isCongressDashboard,
                                 <div className="flex items-center space-x-2">
                                     <Users className="h-4 w-4 md:h-5 md:w-5 text-orange-500 flex-shrink-0" />
                                     <div className="min-w-0">
-                                        <p className="text-xs md:text-sm font-medium truncate"><span className="hidden sm:inline">Active Sponsors</span><span className="sm:hidden">Sponsors</span></p>
+                                        <p className="text-xs md:text-sm font-medium truncate"><span className="hidden sm:inline">Active AI Sponsors</span><span className="sm:hidden">AI Sponsors</span></p>
                                         <p className="text-lg md:text-2xl font-bold">{stateData.statistics.activeSponsors.toLocaleString()}</p>
                                     </div>
                                 </div>
@@ -167,8 +167,8 @@ export function StateDashboard({ stateData, loading, error, isCongressDashboard,
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6">
                         <Card className="shadow-lg">
                             <CardHeader className="pb-3 md:pb-6">
-                                <CardTitle className="font-headline flex items-center gap-2 text-lg md:text-xl"><FileText className="h-4 w-4 md:h-5 md:w-5" /><span className="hidden sm:inline">Recent Legislation</span><span className="sm:hidden">Recent Bills</span></CardTitle>
-                                <CardDescription className="text-xs md:text-sm"><span className="hidden sm:inline">Latest legislative activity {isCongressDashboard ? "in U.S. Congress" : `in ${stateParam || stateAbbrParam}`}</span><span className="sm:hidden">Latest activity</span></CardDescription>
+                                <CardTitle className="font-headline flex items-center gap-2 text-lg md:text-xl"><FileText className="h-4 w-4 md:h-5 md:w-5" /><span className="hidden sm:inline">Recent AI Legislation</span><span className="sm:hidden">Recent AI Bills</span></CardTitle>
+                                <CardDescription className="text-xs md:text-sm"><span className="hidden sm:inline">Latest AI legislative activity {isCongressDashboard ? "in U.S. Congress" : `in ${stateParam || stateAbbrParam}`}</span><span className="sm:hidden">Latest AI activity</span></CardDescription>
                             </CardHeader>
                             <CardContent className="pt-0">
                                 <div className="space-y-3 md:space-y-4">
@@ -195,8 +195,8 @@ export function StateDashboard({ stateData, loading, error, isCongressDashboard,
                         </Card>
                         <Card className="shadow-lg">
                             <CardHeader className="pb-3 md:pb-6">
-                                <CardTitle className="font-headline flex items-center gap-2 text-lg md:text-xl"><TrendingUp className="h-4 w-4 md:h-5 md:w-5" />Trending Topics</CardTitle>
-                                <CardDescription className="text-xs md:text-sm"><span className="hidden sm:inline">Most active policy areas {isCongressDashboard ? "in U.S. Congress" : `in ${stateParam || stateAbbrParam}`}</span><span className="sm:hidden">Active policy areas</span></CardDescription>
+                                <CardTitle className="font-headline flex items-center gap-2 text-lg md:text-xl"><TrendingUp className="h-4 w-4 md:h-5 md:w-5" />Trending AI Topics</CardTitle>
+                                <CardDescription className="text-xs md:text-sm"><span className="hidden sm:inline">Most active AI policy areas {isCongressDashboard ? "in U.S. Congress" : `in ${stateParam || stateAbbrParam}`}</span><span className="sm:hidden">Active AI areas</span></CardDescription>
                             </CardHeader>
                             <CardContent className="pt-0">
                                 <div className="space-y-2 md:space-y-3">
@@ -217,8 +217,8 @@ export function StateDashboard({ stateData, loading, error, isCongressDashboard,
                 <AnimatedSection>
                     <Card className="shadow-lg">
                         <CardHeader className="pb-3 md:pb-6">
-                            <CardTitle className="font-headline flex items-center gap-2 text-lg md:text-xl"><Users className="h-4 w-4 md:h-5 md:w-5" />Most Active Sponsors</CardTitle>
-                            <CardDescription className="text-xs md:text-sm"><span className="hidden sm:inline">{isCongressDashboard ? "Members of Congress with the most recent activity" : `Legislators with the most recent activity in ${stateParam || stateAbbrParam}`}</span><span className="sm:hidden">Most active legislators</span></CardDescription>
+                            <CardTitle className="font-headline flex items-center gap-2 text-lg md:text-xl"><Users className="h-4 w-4 md:h-5 md:w-5" />Top AI Policy Sponsors</CardTitle>
+                            <CardDescription className="text-xs md:text-sm"><span className="hidden sm:inline">{isCongressDashboard ? "Members of Congress with the most recent AI activity" : `Legislators with the most recent AI activity in ${stateParam || stateAbbrParam}`}</span><span className="sm:hidden">Top AI legislators</span></CardDescription>
                         </CardHeader>
                         <CardContent className="pt-0">
                             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 md:gap-4">

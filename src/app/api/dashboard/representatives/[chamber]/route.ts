@@ -1,5 +1,5 @@
-import {NextRequest, NextResponse} from 'next/server';
-import {getCollection} from '@/lib/mongodb';
+import { NextRequest, NextResponse } from 'next/server';
+import { getCollection } from '@/lib/mongodb';
 
 const CHAMBER_MAP: Record<string, string[]> = {
   state_upper: ['upper', 'state senate', 'senate'],
@@ -12,7 +12,7 @@ function buildChamberQuery(chamberParam: string) {
   const chamber = chamberParam.toLowerCase();
   const possible = CHAMBER_MAP[chamber];
   const currentYear = new Date().getFullYear();
-  
+
   if (!possible) {
     return {
       $or: [
@@ -25,7 +25,7 @@ function buildChamberQuery(chamberParam: string) {
       ]
     };
   }
-  
+
   // For state_upper/state_lower, match org_classification, chamber, role, jurisdiction.classification
   if (chamber === 'state_upper' || chamber === 'state_lower') {
     return {
@@ -37,103 +37,56 @@ function buildChamberQuery(chamberParam: string) {
       ]
     };
   }
-  
-  // For us_house, only include current members (latest term is House and is current)
+
+  // For us_house, only include representatives with valid map_boundary data
+  // This simple filter excludes Senators and non-voting delegates automatically
   if (chamber === 'us_house') {
     return {
-      $or: [
-        // Direct chamber match for congressional representatives
-        { chamber: 'House of Representatives' },
-        { chamber: 'House' },
-        { jurisdiction: 'US House' },
-        
-        // Map boundary type match
-        { 'map_boundary.type': 'congressional' },
-        
-        // For OpenStates/state reps, match top-level fields
-        { $and: [
-          { 'terms': { $exists: false } },
-          { jurisdiction: 'US House' }
-        ] },
-        
-        // For CongressPeople with terms array, check latest term
-        { $and: [
-          { 'terms': { $exists: true, $type: 'array' } },
-          { $expr: {
-            $let: {
-              vars: {
-                lastTerm: { $arrayElemAt: ["$terms", { $subtract: [ { $size: "$terms" }, 1 ] } ] }
-              },
-              in: {
-                $and: [
-                  { $regexMatch: { input: "$$lastTerm.chamber", regex: '^House of Representatives$', options: 'i' } },
-                  { $or: [
-                    { $not: [ { $ifNull: ["$$lastTerm.endYear", false] } ] },
-                    { $gte: ["$$lastTerm.endYear", currentYear] }
-                  ] }
-                ]
-              }
-            }
-          } }
-        ] },
-        
-        // Fallback for terms.item structure (if it exists)
-        { $and: [
-          { 'terms.item': { $exists: true } },
-          { $expr: {
-            $let: {
-              vars: {
-                lastTerm: { $arrayElemAt: ["$terms.item", { $subtract: [ { $size: "$terms.item" }, 1 ] } ] }
-              },
-              in: {
-                $and: [
-                  { $regexMatch: { input: "$$lastTerm.chamber", regex: '^House of Representatives$', options: 'i' } },
-                  { $or: [
-                    { $not: [ { $ifNull: ["$$lastTerm.endYear", false] } ] },
-                    { $gte: ["$$lastTerm.endYear", currentYear] }
-                  ] }
-                ]
-              }
-            }
-          } }
-        ] }
-      ]
+      'map_boundary.district': { $exists: true, $ne: null }
     };
   }
-  
+
   // For us_senate, only include current members (latest term is Senate and is current)
   if (chamber === 'us_senate') {
     return {
       $or: [
         // For OpenStates/state reps, match top-level fields
-        { $and: [
-          { 'terms': { $exists: false } },
-          { jurisdiction: 'US Senate' }
-        ] },
+        {
+          $and: [
+            { 'terms': { $exists: false } },
+            { jurisdiction: 'US Senate' }
+          ]
+        },
         // For CongressPeople, only include if latest term is Senate and is current
-        { $and: [
-          { 'terms.item': { $exists: true } },
-          { $expr: {
-            $let: {
-              vars: {
-                lastTerm: { $arrayElemAt: ["$terms.item", { $subtract: [ { $size: "$terms.item" }, 1 ] } ] }
-              },
-              in: {
-                $and: [
-                  { $regexMatch: { input: "$$lastTerm.chamber", regex: '^Senate$', options: 'i' } },
-                  { $or: [
-                    { $not: [ { $ifNull: ["$$lastTerm.endYear", false] } ] },
-                    { $gte: ["$$lastTerm.endYear", currentYear] }
-                  ] }
-                ]
+        {
+          $and: [
+            { 'terms.item': { $exists: true } },
+            {
+              $expr: {
+                $let: {
+                  vars: {
+                    lastTerm: { $arrayElemAt: ["$terms.item", { $subtract: [{ $size: "$terms.item" }, 1] }] }
+                  },
+                  in: {
+                    $and: [
+                      { $regexMatch: { input: "$$lastTerm.chamber", regex: '^Senate$', options: 'i' } },
+                      {
+                        $or: [
+                          { $not: [{ $ifNull: ["$$lastTerm.endYear", false] }] },
+                          { $gte: ["$$lastTerm.endYear", currentYear] }
+                        ]
+                      }
+                    ]
+                  }
+                }
               }
             }
-          } }
-        ] }
+          ]
+        }
       ]
     };
   }
-  
+
   return {
     $or: [
       { 'current_role.org_classification': { $in: possible } },
@@ -169,9 +122,9 @@ function extractPartyInfo(rep: any): string {
 function isUnicameralState(rep: any): boolean {
   // Nebraska is the only state with a unicameral legislature
   return rep.jurisdiction?.name === 'Nebraska' ||
-      rep.current_role?.division_id?.includes('/state:ne/') ||
-      rep.state === 'Nebraska' ||
-      rep.state === 'NE';
+    rep.current_role?.division_id?.includes('/state:ne/') ||
+    rep.state === 'Nebraska' ||
+    rep.state === 'NE';
 }
 
 export async function GET(
@@ -182,10 +135,10 @@ export async function GET(
     const { chamber } = await params;
     const repsCollection = await getCollection('representatives');
     let query: any = {};
-    
+
     if (chamber) {
       const baseQuery = buildChamberQuery(chamber);
-      
+
       // Add map boundary type filter for state chambers to ensure correct chamber
       if (chamber === 'state_upper') {
         query = {
@@ -233,32 +186,15 @@ export async function GET(
           ]
         };
       } else if (chamber === 'us_house') {
+        // Simple filter: just require map_boundary.district (the GEOID)
         query = {
-          $and: [
-            baseQuery,
-            {
-              $or: [
-                { 'map_boundary.type': 'congressional' },
-                {
-                  $and: [
-                    { 'jurisdiction': 'US House' },
-                    {
-                      $or: [
-                        { 'district': null },
-                        { 'district': { $exists: false } }
-                      ]
-                    }
-                  ]
-                }
-              ]
-            }
-          ]
+          'map_boundary.district': { $exists: true, $ne: null }
         };
       } else {
         query = baseQuery;
       }
     }
-    
+
     const reps = await repsCollection.find(query).toArray();
 
     // Process representatives to ensure party information is available
@@ -274,8 +210,8 @@ export async function GET(
           chamberName = 'State Senate';
         } else if (rep.current_role?.org_classification === 'upper') {
           chamberName = 'State Senate';
-        } else if (rep.current_role?.org_classification === 'lower') {
-          chamberName = 'State House';
+        } else if (rep.chamber === 'US House') {
+          chamberName = 'House of Representatives';
         } else {
           chamberName = rep.chamber;
         }

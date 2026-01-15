@@ -69,7 +69,7 @@ export const calculateVotingPowerMetrics = (chamber: 'house' | 'senate') => {
       ? state.population / state.houseSeats
       : state.population / state.senateSeats;
   });
-  
+
   const sorted = votingPowers.slice().sort((a, b) => a - b);
   return {
     min: Math.min(...votingPowers),

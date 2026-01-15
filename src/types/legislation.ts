@@ -171,105 +171,62 @@ export const enactedPatterns = [
   /signed.*chap/i,
   /signed.*by.*gov/i,
   /effective\s*\d{1,2}\/\d{1,2}\/\d{2,4}/i,
-  /motion to override veto prevailed/i
+  /motion to override veto prevailed/i,
+  /chaptered/i,
+  /statutes of \d{4}/i
 ];
 
+// AI-Focused Broad Topics
 export const BROAD_TOPIC_KEYWORDS: Record<string, string[]> = {
-  'Agriculture and Food': [
-    'agriculture', 'agricultural', 'farm', 'farming', 'farmer', 'crop', 'crops', 'livestock', 'cattle', 'beef', 'pork', 'poultry', 'chicken', 'dairy', 'milk', 'food', 'nutrition', 'organic', 'pesticide', 'fertilizer', 'irrigation', 'harvest', 'grain', 'wheat', 'corn', 'soybean', 'vegetable', 'fruit', 'meat', 'fish', 'seafood', 'aquaculture', 'horticulture', 'forestry', 'ranch', 'pasture', 'rural development'
+  'AI Safety & Regulation': [
+    'risk management', 'safety standards', 'liability', 'transparency', 'accountability',
+    'impact assessment', 'regulatory framework', 'compliance', 'auditing', 'oversight',
+    'risk classification', 'prohibited practices', 'high-risk', 'foundation model'
   ],
-  'Animals': [
-    'animal', 'animals', 'pet', 'pets', 'wildlife', 'endangered species', 'conservation', 'habitat', 'zoo', 'veterinary', 'vet', 'dog', 'cat', 'horse', 'bird', 'fish', 'mammal', 'reptile', 'amphibian', 'animal welfare', 'animal rights', 'cruelty', 'abuse', 'protection', 'sanctuary'
+  'Generative AI & Content': [
+    'deepfake', 'deepfakes', 'synthetic media', 'watermarking', 'disclosure',
+    'provenance', 'copyright', 'intellectual property', 'impersonation', 'likeness',
+    'generative ai', 'llm', 'large language model', 'chatgpt', 'diffusion model',
+    'digital replica', 'voice clone'
   ],
-  'Armed Forces and National Security': [
-    'military', 'defense', 'army', 'navy', 'air force', 'marines', 'coast guard', 'veteran', 'veterans', 'national security', 'homeland security', 'intelligence', 'warfare', 'combat', 'soldier', 'weapon', 'weapons', 'missile', 'nuclear', 'terrorism', 'counterterrorism', 'classified', 'surveillance', 'espionage'
+  'Data Privacy & Surveillance': [
+    'biometric', 'facial recognition', 'surveillance', 'consumer data', 'privacy rights',
+    'data protection', 'genetic data', 'behavioral', 'personal data', 'data broker',
+    'remote identification', 'gait analysis', 'consent'
   ],
-  'Arts, Culture, Religion': [
-    'art', 'arts', 'culture', 'cultural', 'museum', 'library', 'music', 'theater', 'theatre', 'dance', 'film', 'movie', 'television', 'radio', 'broadcasting', 'literature', 'book', 'religion', 'religious', 'church', 'faith', 'spiritual', 'worship', 'prayer', 'ceremony', 'festival', 'heritage', 'historic', 'monument'
+  'Workforce & Labor': [
+    'automation', 'job displacement', 'worker retraining', 'algorithmic management',
+    'hiring tools', 'labor rights', 'future of work', 'workforce development',
+    'human oversight', 'gig economy'
   ],
-  'Civil Rights and Liberties, Minority Issues': [
-    'civil rights', 'discrimination', 'equality', 'equal protection', 'due process', 'first amendment', 'freedom of speech', 'freedom of religion', 'privacy', 'minority', 'racial', 'ethnic', 'gender', 'sexual orientation', 'disability', 'accessibility', 'voting rights', 'abortion', 'reproductive rights', 'lgbt', 'lgbtq', 'transgender', 'gay', 'lesbian'
+  'Government & Public Sector': [
+    'procurement', 'automated decision making', 'adm', 'law enforcement', 'policing',
+    'smart cities', 'digital services', 'government ai', 'public agency', 'administrative'
   ],
-  'Commerce': [
-    'business', 'commerce', 'trade', 'industry', 'manufacturing', 'retail', 'wholesale', 'market', 'competition', 'antitrust', 'consumer', 'intellectual property', 'patent', 'trademark', 'copyright', 'small business', 'entrepreneur', 'startup', 'corporation', 'company', 'economic development', 'investment'
+  'Ethics & Bias': [
+    'discrimination', 'algorithmic bias', 'fairness', 'civil rights', 'equity',
+    'diversity', 'inclusion', 'disparate impact', 'ethical guide', 'civil liberties'
   ],
-  'Chamber': [
-    'congress', 'congressional', 'house of representatives', 'senate', 'senator', 'representative', 'committee', 'subcommittee', 'hearing', 'testimony', 'oversight', 'investigation', 'ethics', 'lobbying', 'campaign finance', 'election', 'voting', 'ballot', 'political'
+  'Healthcare AI': [
+    'medical device', 'clinical support', 'patient data', 'diagnosis',
+    'healthcare algorithms', 'hipaa', 'telehealth', 'automated diagnosis', 'drug discovery'
   ],
-  'Crime and Law Enforcement': [
-    'crime', 'criminal', 'police', 'law enforcement', 'officer', 'arrest', 'investigation', 'prosecution', 'court', 'trial', 'sentence', 'prison', 'jail', 'incarceration', 'parole', 'probation', 'drug', 'narcotics', 'trafficking', 'fraud', 'theft', 'robbery', 'assault', 'murder', 'homicide', 'violence', 'gang', 'juvenile'
+  'Education AI': [
+    'edtech', 'student data', 'personalized learning', 'proctoring',
+    'classroom technology', 'digital literacy', 'student tracking', 'adaptive learning'
   ],
-  'Economics and Public Finance': [
-    'budget', 'appropriation', 'spending', 'revenue', 'tax', 'taxation', 'fiscal', 'monetary', 'economy', 'economic', 'finance', 'financial', 'debt', 'deficit', 'surplus', 'inflation', 'recession', 'growth', 'gdp', 'employment', 'unemployment', 'interest rate', 'federal reserve'
+  'Autonomous Systems': [
+    'autonomous vehicle', 'self-driving', 'drone', 'robotics', 'uav',
+    'unmanned system', 'delivery robot', 'automated transport', 'remotely piloted'
   ],
-  'Education': [
-    'education', 'educational', 'school', 'schools', 'student', 'students', 'teacher', 'teachers', 'university', 'college', 'higher education', 'elementary', 'secondary', 'k-12', 'curriculum', 'learning', 'academic', 'degree', 'diploma', 'scholarship', 'student loan', 'tuition', 'special education', 'vocational'
+  'Industry & Innovation': [
+    'research funding', 'compute', 'semiconductor', 'chips', 'innovation hub',
+    'tax incentive', 'startup', 'technology transfer', 'sandbox', 'commercialization',
+    'strategic competition'
   ],
-  'Emergency Management': [
-    'emergency', 'disaster', 'hurricane', 'tornado', 'earthquake', 'flood', 'fire', 'wildfire', 'drought', 'storm', 'evacuation', 'relief', 'response', 'recovery', 'preparedness', 'first responder', 'fema', 'homeland security', 'crisis', 'pandemic'
-  ],
-  'Energy': [
-    'energy', 'power', 'electricity', 'electric', 'oil', 'gas', 'natural gas', 'coal', 'nuclear', 'renewable', 'solar', 'wind', 'hydroelectric', 'geothermal', 'biomass', 'utility', 'utilities', 'grid', 'pipeline', 'drilling', 'fracking', 'conservation', 'efficiency', 'fuel'
-  ],
-  'Environmental Protection': [
-    'environment', 'environmental', 'pollution', 'air quality', 'water quality', 'climate', 'climate change', 'greenhouse gas', 'carbon', 'emission', 'toxic', 'hazardous', 'waste', 'recycling', 'conservation', 'ecosystem', 'biodiversity', 'endangered', 'clean air', 'clean water', 'superfund', 'epa'
-  ],
-  'Families': [
-    'family', 'families', 'child', 'children', 'parent', 'parents', 'marriage', 'divorce', 'custody', 'adoption', 'foster care', 'domestic violence', 'child abuse', 'child welfare', 'childcare', 'parental leave', 'family leave'
-  ],
-  'Finance and Financial Sector': [
-    'bank', 'banking', 'financial institution', 'credit', 'loan', 'mortgage', 'insurance', 'securities', 'investment', 'stock', 'bond', 'mutual fund', 'pension', 'retirement', '401k', 'ira', 'bankruptcy', 'foreclosure', 'consumer protection', 'fdic'
-  ],
-  'Foreign Trade and International Finance': [
-    'trade', 'international trade', 'export', 'exports', 'import', 'imports', 'tariff', 'tariffs', 'trade agreement', 'nafta', 'wto', 'customs', 'foreign investment', 'international', 'globalization', 'competitiveness'
-  ],
-  'Government Operations and Politics': [
-    'government', 'federal', 'agency', 'department', 'administration', 'bureaucracy', 'regulation', 'rulemaking', 'procurement', 'contract', 'contracting', 'personnel', 'employee', 'civil service', 'ethics', 'transparency', 'accountability', 'audit', 'inspector general'
-  ],
-  'Health': [
-    'health', 'healthcare', 'medical', 'medicine', 'hospital', 'clinic', 'doctor', 'physician', 'nurse', 'patient', 'disease', 'illness', 'treatment', 'therapy', 'drug', 'pharmaceutical', 'prescription', 'medicare', 'medicaid', 'insurance', 'mental health', 'public health', 'epidemic', 'vaccine'
-  ],
-  'Housing and Community Development': [
-    'housing', 'home', 'homeownership', 'mortgage', 'rent', 'rental', 'affordable housing', 'public housing', 'homeless', 'homelessness', 'community development', 'urban development', 'rural development', 'neighborhood', 'construction', 'building', 'real estate', 'property'
-  ],
-  'Immigration': [
-    'immigration', 'immigrant', 'immigrants', 'visa', 'citizenship', 'naturalization', 'border', 'deportation', 'asylum', 'refugee', 'undocumented', 'illegal immigration', 'green card', 'h1b', 'daca', 'dreamers', 'customs', 'ice', 'border patrol'
-  ],
-  'International Affairs': [
-    'foreign policy', 'international', 'diplomacy', 'ambassador', 'embassy', 'treaty', 'alliance', 'united nations', 'nato', 'foreign aid', 'humanitarian', 'peace', 'conflict', 'war', 'sanctions', 'human rights', 'democracy'
-  ],
-  'Labor and Employment': [
-    'labor', 'employment', 'worker', 'workers', 'job', 'jobs', 'workplace', 'union', 'collective bargaining', 'wage', 'wages', 'salary', 'minimum wage', 'overtime', 'benefits', 'unemployment', 'workforce', 'training', 'apprenticeship', 'occupational safety', 'osha'
-  ],
-  'Law': [
-    'law', 'legal', 'court', 'courts', 'judge', 'judges', 'justice', 'judicial', 'litigation', 'lawsuit', 'attorney', 'lawyer', 'legal services', 'civil procedure', 'criminal procedure', 'constitutional', 'statute', 'regulation', 'compliance'
-  ],
-  'Native Americans': [
-    'native american', 'indian', 'tribe', 'tribal', 'reservation', 'alaska native', 'hawaiian native', 'indigenous', 'sovereignty', 'treaty', 'casino', 'gaming', 'land rights', 'cultural preservation'
-  ],
-  'Public Lands and Natural Resources': [
-    'public land', 'national park', 'national forest', 'wilderness', 'monument', 'recreation', 'hunting', 'fishing', 'mining', 'timber', 'logging', 'grazing', 'land management', 'blm', 'forest service', 'national wildlife refuge'
-  ],
-  'Science, Technology, Communications': [
-    'science', 'scientific', 'research', 'technology', 'innovation', 'internet', 'cyber', 'cybersecurity', 'computer', 'software', 'telecommunications', 'broadband', 'wireless', 'satellite', 'space', 'nasa', 'nsf', 'nih', 'stem', 'artificial intelligence', 'ai'
-  ],
-  'Social Sciences and History': [
-    'history', 'historical', 'social science', 'sociology', 'psychology', 'anthropology', 'archaeology', 'economics', 'political science', 'geography', 'statistics', 'census', 'demographic'
-  ],
-  'Social Welfare': [
-    'welfare', 'social security', 'disability', 'food stamps', 'snap', 'tanf', 'medicaid', 'social services', 'poverty', 'assistance', 'benefits', 'elderly', 'senior', 'aging', 'community service', 'volunteer', 'charity', 'nonprofit'
-  ],
-  'Sports and Recreation': [
-    'sports', 'recreation', 'athletics', 'athlete', 'olympic', 'ncaa', 'professional sports', 'amateur sports', 'physical fitness', 'exercise', 'gym', 'park', 'recreation center', 'youth sports', 'coaching'
-  ],
-  'Taxation': [
-    'tax', 'taxes', 'taxation', 'income tax', 'corporate tax', 'property tax', 'sales tax', 'excise tax', 'tax credit', 'tax deduction', 'tax reform', 'irs', 'tax code', 'tax collection', 'tax evasion', 'tax compliance'
-  ],
-  'Transportation and Public Works': [
-    'transportation', 'highway', 'road', 'bridge', 'infrastructure', 'public works', 'transit', 'bus', 'rail', 'railroad', 'airport', 'aviation', 'port', 'shipping', 'vehicle', 'automobile', 'truck', 'motorcycle', 'bicycle', 'pedestrian', 'traffic', 'dot'
-  ],
-  'Water Resources Development': [
-    'water', 'water resources', 'dam', 'reservoir', 'flood', 'drought', 'irrigation', 'watershed', 'river', 'lake', 'groundwater', 'aquifer', 'water supply', 'water treatment', 'wastewater', 'sewage', 'wetland', 'corps of engineers'
+  'Cybersecurity': [
+    'cybersecurity', 'cyber threat', 'vulnerability', 'hacking', 'malware',
+    'incident response', 'critical infrastructure', 'information security'
   ]
 };
 

@@ -1,11 +1,11 @@
 "use client";
 
-import {useEffect, useState} from 'react';
-import {Card, CardContent, CardHeader, CardTitle} from '@/components/ui/card';
-import {Badge} from '@/components/ui/badge';
-import {Button} from '@/components/ui/button';
-import {AnimatedSection} from '@/components/ui/AnimatedSection';
-import {ArrowRight, Calendar, FileText, MapPin, RefreshCw, TrendingUp, Users} from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { AnimatedSection } from '@/components/ui/AnimatedSection';
+import { ArrowRight, Calendar, FileText, MapPin, RefreshCw, TrendingUp, Users } from 'lucide-react';
 import Link from 'next/link';
 
 interface HomepageStats {
@@ -57,9 +57,9 @@ export default function StatisticsShowcase() {
             setError('Failed to connect to statistics service');
             // Provide fallback data
             setStats({
-                legislation: {total: 0, recent: 0, active: 0, daily: 0, topSubjects: []},
-                representatives: {total: 0, state: 0, congress: 0, parties: []},
-                posts: {total: 0, recent: 0, active: 0},
+                legislation: { total: 0, recent: 0, active: 0, daily: 0, topSubjects: [] },
+                representatives: { total: 0, state: 0, congress: 0, parties: [] },
+                posts: { total: 0, recent: 0, active: 0 },
                 jurisdictions: 0,
                 lastUpdated: new Date().toISOString()
             });
@@ -95,7 +95,7 @@ export default function StatisticsShowcase() {
                 className="py-20 px-6 md:px-10 bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800">
                 <div className="container mx-auto text-center">
                     <div className="flex items-center justify-center space-x-2 mb-8">
-                        <RefreshCw className="h-6 w-6 animate-spin text-primary"/>
+                        <RefreshCw className="h-6 w-6 animate-spin text-primary" />
                         <span className="text-lg text-muted-foreground">Loading latest statistics...</span>
                     </div>
                 </div>
@@ -109,14 +109,14 @@ export default function StatisticsShowcase() {
             <div className="container mx-auto">
                 <div className="text-center mb-12">
                     <h2 className="text-4xl font-bold mb-4 tracking-tight">
-                        StatePulse by the Numbers
+                        AI Legislation Tracker by the Numbers
                     </h2>
                     <p className="text-muted-foreground text-lg max-w-2xl mx-auto leading-relaxed mb-4">
                         Statistics from our comprehensive database of legislation and representatives.
                     </p>
                     {stats?.lastUpdated && (
                         <div className="flex items-center justify-center space-x-2 text-sm text-muted-foreground">
-                            <Calendar className="h-4 w-4"/>
+                            <Calendar className="h-4 w-4" />
                             <span>Last updated: {formatTimeAgo(stats.lastUpdated)}</span>
                             <Button
                                 variant="ghost"
@@ -125,7 +125,7 @@ export default function StatisticsShowcase() {
                                 className="ml-2 h-6 px-2"
                                 disabled={loading}
                             >
-                                <RefreshCw className={`h-3 w-3 ${loading ? 'animate-spin' : ''}`}/>
+                                <RefreshCw className={`h-3 w-3 ${loading ? 'animate-spin' : ''}`} />
                             </Button>
                         </div>
                     )}
@@ -140,7 +140,7 @@ export default function StatisticsShowcase() {
                                 <div className="flex items-center justify-between">
                                     <div className="flex items-center space-x-3">
                                         <div className="p-3 bg-blue-100 dark:bg-blue-900/30 rounded-full">
-                                            <FileText className="h-6 w-6 text-blue-600 dark:text-blue-400"/>
+                                            <FileText className="h-6 w-6 text-blue-600 dark:text-blue-400" />
                                         </div>
                                         <div>
                                             <CardTitle className="text-xl text-blue-900 dark:text-blue-100">
@@ -204,7 +204,7 @@ export default function StatisticsShowcase() {
                                     <Link href="/legislation">
                                         Explore Legislation
                                         <ArrowRight
-                                            className="ml-2 h-4 w-4 group-hover:translate-x-1 transition-transform"/>
+                                            className="ml-2 h-4 w-4 group-hover:translate-x-1 transition-transform" />
                                     </Link>
                                 </Button>
                             </CardContent>
@@ -219,7 +219,7 @@ export default function StatisticsShowcase() {
                                 <div className="flex items-center justify-between">
                                     <div className="flex items-center space-x-3">
                                         <div className="p-3 bg-green-100 dark:bg-green-900/30 rounded-full">
-                                            <Users className="h-6 w-6 text-green-600 dark:text-green-400"/>
+                                            <Users className="h-6 w-6 text-green-600 dark:text-green-400" />
                                         </div>
                                         <div>
                                             <CardTitle className="text-xl text-green-900 dark:text-green-100">
@@ -262,9 +262,9 @@ export default function StatisticsShowcase() {
                                         <div className="space-y-2">
                                             {stats.representatives.parties.slice(0, 5).map((party, index) => (
                                                 <div key={index} className="flex justify-between items-center text-sm">
-                        <span className="text-foreground truncate">
-                          {party._id || 'Unknown'}
-                        </span>
+                                                    <span className="text-foreground truncate">
+                                                        {party._id || 'Unknown'}
+                                                    </span>
                                                     <Badge variant="outline" className="text-xs">
                                                         {formatNumber(party.count)}
                                                     </Badge>
@@ -278,7 +278,7 @@ export default function StatisticsShowcase() {
                                     <Link href="/representatives">
                                         Find Representatives
                                         <MapPin
-                                            className="ml-2 h-4 w-4 group-hover:translate-x-1 transition-transform"/>
+                                            className="ml-2 h-4 w-4 group-hover:translate-x-1 transition-transform" />
                                     </Link>
                                 </Button>
                             </CardContent>
@@ -327,7 +327,7 @@ export default function StatisticsShowcase() {
                     <div className="mt-8 text-center">
                         <div
                             className="inline-flex items-center space-x-2 text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/20 px-4 py-2 rounded-lg">
-                            <TrendingUp className="h-4 w-4"/>
+                            <TrendingUp className="h-4 w-4" />
                             <span className="text-sm">{error}</span>
                         </div>
                     </div>

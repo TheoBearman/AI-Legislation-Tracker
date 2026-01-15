@@ -4,9 +4,8 @@ import { Badge } from "@/components/ui/badge";
 import { LoadingOverlay } from "@/components/ui/LoadingOverlay";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Bookmark, MapPin, Plus, Search, X, Grid3X3, List } from "lucide-react";
-import { BookmarksContext } from "@/components/features/BookmarkButton";
-import React, { useCallback, useContext, useEffect, useLayoutEffect, useRef, useState } from "react";
+import { MapPin, Plus, Search, X, Grid3X3, List } from "lucide-react";
+import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import {
     DropdownMenu,
@@ -15,7 +14,7 @@ import {
     DropdownMenuRadioItem,
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { useUser } from "@clerk/nextjs";
+// import { useUser } from "@clerk/nextjs";
 import { STATE_MAP } from "@/types/geo";
 import PolicyUpdateCard from "@/components/features/PolicyUpdateCard";
 import { BROAD_TOPIC_KEYWORDS } from "@/types/legislation";
@@ -71,9 +70,8 @@ const PolicyUpdateCardCompact: React.FC<{
         <AnimatedSection key={`compact-${update.id}-${idx}`}>
             <Link
                 href={`/legislation/${update.id}`}
-                className={`block p-3 border rounded-md bg-background transition hover:bg-accent/50 text-sm h-full flex flex-col ${
-                    billIsEnacted ? 'border-green-500 bg-green-50 dark:bg-green-900/20' : 'hover:border-primary/30'
-                }`}
+                className={`block p-3 border rounded-md bg-background transition hover:bg-accent/50 text-sm h-full flex flex-col ${billIsEnacted ? 'border-green-500 bg-green-50 dark:bg-green-900/20' : 'hover:border-primary/30'
+                    }`}
             >
                 <div className="flex items-start justify-between gap-2 mb-2">
                     <div className="flex-1 min-w-0">
@@ -99,7 +97,7 @@ const PolicyUpdateCardCompact: React.FC<{
                         </div>
                     )}
                 </div>
-                
+
                 <div className="text-xs text-muted-foreground space-y-1 flex-1">
                     {formattedLastActionDate && (
                         <div>Last: {formattedLastActionDate}</div>
@@ -170,6 +168,7 @@ const CLASSIFICATIONS = [
     { label: "Senate Resolution", value: "sres" },
     { label: "Memorial", value: "memorial" },
     { label: "Proclamation", value: "proclamation" },
+    { label: "Executive Order", value: "executive-order" },
 ];
 
 let cardNumber = 20;
@@ -184,7 +183,7 @@ async function fetchBookmarkedUpdates({
     jurisdictionName = "",
     showCongress = false,
     showOnlyEnacted = false,
-    sortField = "createdAt",
+    sortField = "lastActionAt",
     sortDir = "desc"
 }: {
     limit?: number;
@@ -199,63 +198,63 @@ async function fetchBookmarkedUpdates({
     sortDir?: string;
 }) {
     // Fetch ALL bookmarked items first (we'll filter client-side)
-    const res = await fetch(`/api/bookmarks?includeLegislation=true&limit=1000&offset=0&sortBy=createdAt&sortOrder=desc`);
+    const res = await fetch(`/api/bookmarks?includeLegislation=true&limit=1000&offset=0&sortBy=lastActionAt&sortOrder=desc`);
     if (!res.ok) throw new Error("Failed to fetch bookmarked updates");
-    
+
     const responseData = await res.json();
-    
+
     // Extract the legislation from bookmarksWithLegislation
     let allBookmarkedLegislation: PolicyUpdate[] = [];
     if (responseData.bookmarksWithLegislation) {
         allBookmarkedLegislation = responseData.bookmarksWithLegislation.map((item: any) => item.legislation);
     }
-    
+
     // Apply client-side filtering
     let filteredData = allBookmarkedLegislation.filter((item: PolicyUpdate) => {
         // Search filter
         if (search && search.trim()) {
             const searchLower = search.toLowerCase();
-            const matchesSearch = 
+            const matchesSearch =
                 item.title?.toLowerCase().includes(searchLower) ||
                 item.identifier?.toLowerCase().includes(searchLower) ||
                 item.summary?.toLowerCase().includes(searchLower) ||
                 item.sponsors?.some(sponsor => sponsor.name?.toLowerCase().includes(searchLower));
             if (!matchesSearch) return false;
         }
-        
+
         // Subject filter
         if (subject && subject.trim()) {
-            const hasSubject = 
+            const hasSubject =
                 item.subjects?.some(s => s.toLowerCase().includes(subject.toLowerCase())) ||
                 item.topicClassification?.broadTopics?.some(topic => topic.toLowerCase().includes(subject.toLowerCase()));
             if (!hasSubject) return false;
         }
-        
+
         // Classification filter
         if (classification && classification.trim()) {
             const hasClassification = item.classification?.some(c => c.toLowerCase().includes(classification.toLowerCase()));
             if (!hasClassification) return false;
         }
-        
+
         // Jurisdiction filter
         if (showCongress) {
             if (item.jurisdictionName !== "United States Congress") return false;
         } else if (jurisdictionName && jurisdictionName.trim()) {
             if (item.jurisdictionName !== jurisdictionName) return false;
         }
-        
+
         // Enacted filter
         if (showOnlyEnacted) {
             if (!isLegislationEnacted(item)) return false;
         }
-        
+
         return true;
     });
-    
+
     // Apply sorting
     filteredData.sort((a, b) => {
         let aValue: any, bValue: any;
-        
+
         switch (sortField) {
             case 'title':
                 aValue = a.title || '';
@@ -271,20 +270,20 @@ async function fetchBookmarkedUpdates({
                 bValue = b.createdAt ? new Date(b.createdAt).getTime() : 0;
                 break;
         }
-        
+
         if (sortDir === 'asc') {
             return aValue < bValue ? -1 : aValue > bValue ? 1 : 0;
         } else {
             return aValue > bValue ? -1 : aValue < bValue ? 1 : 0;
         }
     });
-    
+
     // Apply pagination
     const startIndex = offset;
     const endIndex = offset + limit;
     const paginatedData = filteredData.slice(startIndex, endIndex);
     const hasMore = endIndex < filteredData.length;
-    
+
     return {
         data: paginatedData,
         hasMore,
@@ -297,7 +296,7 @@ async function fetchUpdatesFeed({
     limit = cardNumber,
     search = "",
     subject = "",
-    sortField = "createdAt",
+    sortField = "lastActionAt",
     sortDir = "desc",
     classification = "",
     jurisdictionName = "",
@@ -343,10 +342,10 @@ async function fetchUpdatesFeed({
     if (showOnlyEnacted) {
         params.append('showOnlyEnacted', 'true');
     }
-    
+
     // Add context for proper sorting behavior
     params.append('context', 'policy-updates-feed');
-    
+
     const res = await fetch(`/api/legislation?${params.toString()}`);
     if (!res.ok) throw new Error("Failed to fetch updates");
 
@@ -377,7 +376,7 @@ export function PolicyUpdatesFeed() {
     const [classification, setClassification] = useState("");
     const [jurisdictionName, setJurisdictionName] = useState("");
     const [showCongress, setShowCongress] = useState(false);
-    const [sort, setSort] = useState<{ field: string; dir: 'asc' | 'desc' }>({ field: 'createdAt', dir: 'desc' });
+    const [sort, setSort] = useState<{ field: string; dir: 'asc' | 'desc' }>({ field: 'lastActionAt', dir: 'desc' });
     const [repFilter, setRepFilter] = useState<string>("");
     const [sponsorId, setSponsorId] = useState<string>("");
     const router = useRouter();
@@ -401,6 +400,12 @@ export function PolicyUpdatesFeed() {
         jurisdictionName: string
     } | null>(null);
 
+    const [mounted, setMounted] = useState(false);
+
+    useEffect(() => {
+        setMounted(true);
+    }, []);
+
     // Add a ref to track if the page was reloaded
     const wasReloaded = useRef(false);
 
@@ -413,9 +418,10 @@ export function PolicyUpdatesFeed() {
     //     }
     // }, []);
 
-    // Access bookmark context
-    const { bookmarks, loading: bookmarksLoading } = useContext(BookmarksContext);
-    const { user } = useUser();
+    // Access bookmark context - REMOVED (auth feature)
+    const bookmarks: string[] = [];
+    const bookmarksLoading = false;
+    const user = null;
 
     // URL parameter handling for state filtering, congress, and rep filtering
     const searchParams = useSearchParams();
@@ -497,7 +503,7 @@ export function PolicyUpdatesFeed() {
         try {
             const currentSkip = skipRef.current;
             const limit = compactView ? compactViewCardNumber : 20; // Load more items in compact mode
-            
+
             if (showOnlyBookmarked) {
                 // Fetch more bookmarked items
                 const bookmarkedResult = await fetchBookmarkedUpdates({
@@ -512,7 +518,7 @@ export function PolicyUpdatesFeed() {
                     sortField: sort.field,
                     sortDir: sort.dir
                 });
-                
+
                 if (bookmarkedResult.data.length > 0) {
                     setUpdates((prev) => {
                         const existingIds = new Set(prev.map((u: PolicyUpdate) => u.id));
@@ -538,7 +544,7 @@ export function PolicyUpdatesFeed() {
                     sponsorId: sponsorId, // Only send sponsorId, not sponsor name
                     showOnlyEnacted
                 });
-                
+
                 if (newUpdates.length > 0) {
                     setUpdates((prev) => {
                         const existingIds = new Set(prev.map((u: PolicyUpdate) => u.id));
@@ -579,7 +585,7 @@ export function PolicyUpdatesFeed() {
         setLoading(true);
         try {
             const limit = compactView ? compactViewCardNumber : 20;
-            
+
             if (showOnlyBookmarked) {
                 // Fetch bookmarked legislation directly
                 const bookmarkedResult = await fetchBookmarkedUpdates({
@@ -660,7 +666,7 @@ export function PolicyUpdatesFeed() {
                 setShowOnlyEnacted(state.showOnlyEnacted || false);
                 setShowOnlyBookmarked(state.showOnlyBookmarked || false);
                 setCompactView(state.compactView || false);
-                setSort(state.sort || { field: 'createdAt', dir: 'desc' });
+                setSort(state.sort || { field: 'lastActionAt', dir: 'desc' });
                 setSkip(state.skip || 0);
                 skipRef.current = state.skip || 0;
                 setSearchInput(state.searchInput || "");
@@ -712,7 +718,7 @@ export function PolicyUpdatesFeed() {
             setLoading(true);
             try {
                 const limit = compactView ? compactViewCardNumber : 20;
-                
+
                 if (showOnlyBookmarked) {
                     // Fetch bookmarked legislation directly
                     const bookmarkedResult = await fetchBookmarkedUpdates({
@@ -728,7 +734,7 @@ export function PolicyUpdatesFeed() {
                         sortDir: sort.dir
                     });
                     if (!isMounted) return;
-                    
+
                     setUpdates(bookmarkedResult.data);
                     skipRef.current = bookmarkedResult.data.length;
                     setSkip(bookmarkedResult.data.length);
@@ -868,11 +874,11 @@ export function PolicyUpdatesFeed() {
     const getSortLabel = (field: string, dir: string) => {
         switch (`${field}:${dir}`) {
             case "createdAt:desc":
-                return "Most Recent";
+                return "Most Recent Introduction";
             case "createdAt:asc":
                 return "Oldest";
             case "lastActionAt:desc":
-                return "Latest Action";
+                return "Most Recent Update";
             case "lastActionAt:asc":
                 return "Earliest Action";
             case "title:asc":
@@ -985,7 +991,7 @@ export function PolicyUpdatesFeed() {
                                 setSearch("");
                                 setSubject("");
                                 setClassification("");
-                                setSort({ field: 'createdAt', dir: 'desc' });
+                                setSort({ field: 'lastActionAt', dir: 'desc' });
                                 setShowOnlyBookmarked(false);
                                 // Keep compact view preference when clearing filters
                                 const currentCompactView = compactView;
@@ -1036,89 +1042,84 @@ export function PolicyUpdatesFeed() {
                         Search
                     </Button>
                 </div>
-                <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                        <Button variant="outline" className="w-full sm:w-auto">
-                            Sort: {getSortLabel(sort.field, sort.dir)}
-                        </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
-                        <DropdownMenuRadioGroup
-                            value={`${sort.field}:${sort.dir}`}
-                            onValueChange={val => {
-                                const [field, dir] = val.split(":");
-                                setSort({ field, dir: dir as 'asc' | 'desc' });
-                                setUpdates([]);
-                                setSkip(0);
-                                skipRef.current = 0;
-                                setHasMore(true);
-                            }}
-                        >
-                            <DropdownMenuRadioItem value="createdAt:desc">Most Recent</DropdownMenuRadioItem>
-                            <DropdownMenuRadioItem value="createdAt:asc">Oldest</DropdownMenuRadioItem>
-                            <DropdownMenuRadioItem value="lastActionAt:desc">Latest Action</DropdownMenuRadioItem>
-                            <DropdownMenuRadioItem value="lastActionAt:asc">Earliest Action</DropdownMenuRadioItem>
-                            <DropdownMenuRadioItem value="title:asc">Alphabetical (A-Z)</DropdownMenuRadioItem>
-                            <DropdownMenuRadioItem value="title:desc">Alphabetical (Z-A)</DropdownMenuRadioItem>
-                            <DropdownMenuRadioItem value="relevance:desc">Relevance</DropdownMenuRadioItem>
-                        </DropdownMenuRadioGroup>
-                    </DropdownMenuContent>
-                </DropdownMenu>
-                <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                        <Button variant="outline" className="w-full sm:w-auto">
-                            <MapPin className="mr-2 h-4 w-4" />
-                            {showCongress ? "U.S. Congress" : jurisdictionName || "All States"}
-                        </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end" className="w-56 max-h-80 overflow-y-auto">
-                        <DropdownMenuRadioGroup
-                            value={showCongress ? "congress" : jurisdictionName}
-                            onValueChange={(value) => {
-                                if (value === "congress") {
-                                    setShowCongress(true);
-                                    setJurisdictionName("");
-                                } else if (value === "all") {
-                                    setShowCongress(false);
-                                    setJurisdictionName("");
-                                } else {
-                                    setShowCongress(false);
-                                    setJurisdictionName(value);
-                                }
-                                setUpdates([]);
-                                setSkip(0);
-                                skipRef.current = 0;
-                                setHasMore(true);
-                                setLoading(true);
-                            }}
-                        >
-                            <DropdownMenuRadioItem value="all">All States</DropdownMenuRadioItem>
-                            <DropdownMenuRadioItem value="congress">U.S. Congress</DropdownMenuRadioItem>
-                            {Object.keys(STATE_MAP).sort().map((state) => (
-                                <DropdownMenuRadioItem key={state} value={state}>
-                                    {state}
-                                </DropdownMenuRadioItem>
-                            ))}
-                        </DropdownMenuRadioGroup>
-                    </DropdownMenuContent>
-                </DropdownMenu>
-                <Button
-                    variant={showOnlyBookmarked ? "default" : "outline"}
-                    className="w-full sm:w-auto"
-                    disabled={bookmarksLoading || !user}
-                    onClick={() => {
-                        if (!user) return;
-                        setShowOnlyBookmarked(!showOnlyBookmarked);
-                        setUpdates([]);
-                        setSkip(0);
-                        skipRef.current = 0;
-                        setHasMore(true);
-                        setLoading(true);
-                    }}
-                >
-                    <Bookmark className="mr-2 h-4 w-4" />
-                    {showOnlyBookmarked ? "Show All" : `Bookmarked (${bookmarksLoading ? '...' : bookmarks.length})`}
-                </Button>
+                {mounted ? (
+                    <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                            <Button variant="outline" className="w-full sm:w-auto">
+                                Sort: {getSortLabel(sort.field, sort.dir)}
+                            </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                            <DropdownMenuRadioGroup
+                                value={`${sort.field}:${sort.dir}`}
+                                onValueChange={val => {
+                                    const [field, dir] = val.split(":");
+                                    setSort({ field, dir: dir as 'asc' | 'desc' });
+                                    setUpdates([]);
+                                    setSkip(0);
+                                    skipRef.current = 0;
+                                    setHasMore(true);
+                                }}
+                            >
+                                <DropdownMenuRadioItem value="createdAt:desc">Most Recent Introduction</DropdownMenuRadioItem>
+                                <DropdownMenuRadioItem value="lastActionAt:desc">Most Recent Update</DropdownMenuRadioItem>
+                                <DropdownMenuRadioItem value="createdAt:asc">Oldest</DropdownMenuRadioItem>
+                                <DropdownMenuRadioItem value="title:asc">Alphabetical (A-Z)</DropdownMenuRadioItem>
+                                <DropdownMenuRadioItem value="title:desc">Alphabetical (Z-A)</DropdownMenuRadioItem>
+                                <DropdownMenuRadioItem value="relevance:desc">Relevance</DropdownMenuRadioItem>
+                            </DropdownMenuRadioGroup>
+                        </DropdownMenuContent>
+                    </DropdownMenu>
+                ) : (
+                    <Button variant="outline" className="w-full sm:w-auto">
+                        Sort: {getSortLabel(sort.field, sort.dir)}
+                    </Button>
+                )}
+                {mounted ? (
+                    <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                            <Button variant="outline" className="w-full sm:w-auto">
+                                <MapPin className="mr-2 h-4 w-4" />
+                                {showCongress ? "U.S. Congress" : jurisdictionName || "All States"}
+                            </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end" className="w-56 max-h-80 overflow-y-auto">
+                            <DropdownMenuRadioGroup
+                                value={showCongress ? "congress" : jurisdictionName}
+                                onValueChange={(value) => {
+                                    if (value === "congress") {
+                                        setShowCongress(true);
+                                        setJurisdictionName("");
+                                    } else if (value === "all") {
+                                        setShowCongress(false);
+                                        setJurisdictionName("");
+                                    } else {
+                                        setShowCongress(false);
+                                        setJurisdictionName(value);
+                                    }
+                                    setUpdates([]);
+                                    setSkip(0);
+                                    skipRef.current = 0;
+                                    setHasMore(true);
+                                    setLoading(true);
+                                }}
+                            >
+                                <DropdownMenuRadioItem value="all">All States</DropdownMenuRadioItem>
+                                <DropdownMenuRadioItem value="congress">U.S. Congress</DropdownMenuRadioItem>
+                                {Object.keys(STATE_MAP).sort().map((state) => (
+                                    <DropdownMenuRadioItem key={state} value={state}>
+                                        {state}
+                                    </DropdownMenuRadioItem>
+                                ))}
+                            </DropdownMenuRadioGroup>
+                        </DropdownMenuContent>
+                    </DropdownMenu>
+                ) : (
+                    <Button variant="outline" className="w-full sm:w-auto">
+                        <MapPin className="mr-2 h-4 w-4" />
+                        {showCongress ? "U.S. Congress" : jurisdictionName || "All States"}
+                    </Button>
+                )}
                 {/* Enacted Legislation Filter */}
                 <Button
                     variant={showOnlyEnacted ? "default" : "outline"}
@@ -1208,123 +1209,9 @@ export function PolicyUpdatesFeed() {
             </div>
             {/*</AnimatedSection>*/}
 
-            {/* Custom Tags Section */}
-            {/*<AnimatedSection>*/}
-            <div className="mb-6">
-                <div className="flex items-center justify-between mb-2">
-                    <h3 className="text-sm font-medium">Custom Tags</h3>
-                    <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => setShowCustomTagInput(!showCustomTagInput)}
-                        className="flex items-center gap-1"
-                    >
-                        <Plus className="h-3 w-3" />
-                        Add Tag
-                    </Button>
-                </div>
-
-                {/* Custom Tag Input */}
-                {showCustomTagInput && (
-                    <div className="flex gap-2 mb-3">
-                        <Input
-                            placeholder="Enter custom tag..."
-                            value={newTagInput}
-                            onChange={(e) => setNewTagInput(e.target.value)}
-                            onKeyDown={(e) => {
-                                if (e.key === 'Enter') {
-                                    e.preventDefault();
-                                    addCustomTag();
-                                }
-                                if (e.key === 'Escape') {
-                                    setShowCustomTagInput(false);
-                                    setNewTagInput("");
-                                }
-                            }}
-                            className="flex-1"
-                            autoFocus
-                        />
-                        <Button onClick={addCustomTag} disabled={!newTagInput.trim()}>
-                            Add
-                        </Button>
-                        <Button
-                            variant="outline"
-                            onClick={() => {
-                                setShowCustomTagInput(false);
-                                setNewTagInput("");
-                            }}
-                        >
-                            Cancel
-                        </Button>
-                    </div>
-                )}
-
-                {/* Custom Tags Display */}
-                {customTags.length > 0 && (
-                    <div className="flex flex-wrap gap-2">
-                        {customTags.map((tag) => (
-                            <Badge
-                                key={tag}
-                                variant={subject === tag ? "default" : "outline"}
-                                onClick={() => {
-                                    const newSubject = subject === tag ? "" : tag;
-                                    if (subject !== newSubject) {
-                                        setSubject(newSubject);
-                                        setUpdates([]);
-                                        setSkip(0);
-                                        skipRef.current = 0;
-                                        setHasMore(true);
-                                        setLoading(true);
-                                    }
-                                }}
-                                className="cursor-pointer flex items-center gap-1"
-                            >
-                                #{tag}
-                                <X
-                                    className="h-3 w-3 hover:text-destructive"
-                                    onClick={(e) => {
-                                        e.stopPropagation();
-                                        removeCustomTag(tag);
-                                    }}
-                                />
-                            </Badge>
-                        ))}
-                    </div>
-                )}
-
-                {customTags.length === 0 && !showCustomTagInput && (
-                    <p className="text-sm text-muted-foreground">No custom tags yet. Add your own tags to quickly filter
-                        content.</p>
-                )}
-            </div>
-            {/*</AnimatedSection>*/}
-
-            {/* Bookmark checkbox */}
-            {/*<AnimatedSection>*/}
-            <div className="flex items-center mb-4">
-                <input
-                    id="show-bookmarked"
-                    type="checkbox"
-                    checked={showOnlyBookmarked}
-                    onChange={e => {
-                        setShowOnlyBookmarked(e.target.checked);
-                        setUpdates([]);
-                        setSkip(0);
-                        skipRef.current = 0;
-                        setHasMore(true);
-                        setLoading(true);
-                    }}
-                    className="h-4 w-4 text-primary border-gray-300 rounded focus:ring-primary"
-                />
-                <label htmlFor="show-bookmarked" className="ml-2 text-sm text-muted-foreground cursor-pointer">
-                    Show only bookmarked updates
-                </label>
-            </div>
-            {/*</AnimatedSection>*/}
-
             {/* Updates Grid */}
-            <div className={compactView 
-                ? "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 items-stretch" 
+            <div className={compactView
+                ? "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 items-stretch"
                 : "grid grid-cols-1 sm:grid-cols-2 gap-4 items-stretch"
             }>
                 {updates.map((update, idx) => (

@@ -4,13 +4,11 @@ import React from "react";
 import Link from "next/link";
 
 import PolicyUpdateCard from '@/components/features/PolicyUpdateCard';
-import { PostCard } from '@/components/features/PostCard';
 import RepresentativeCard from '@/components/features/RepresentativeCard';
 
 
 import { useEffect, useState } from 'react';
 import type { Legislation } from '@/types/legislation';
-import type { Post } from '@/types/media';
 import type { Representative } from '@/types/representative';
 
 function useRecentData<T>(url: string, key: string): { data: T[]; loading: boolean; error: string | null } {
@@ -34,15 +32,14 @@ function useRecentData<T>(url: string, key: string): { data: T[]; loading: boole
 
 
 // Minimal state for PolicyUpdateCard (legislation)
-const emptyFn = () => {};
-const emptyArr: any[] = [];
+const emptyFn = () => { };
 const emptyRef = { current: 0 };
 function truncate(str: string | undefined, n = 100) {
   if (!str) return '';
   return str.length > n ? str.slice(0, n) + '...' : str;
 }
 
-function getCard(card: any, idx: number, type: 'legislation' | 'post' | 'rep', updatesArr?: any[]) {
+function getCard(card: any, idx: number, type: 'legislation' | 'rep', updatesArr?: any[]) {
   switch (type) {
     case 'legislation': {
       // Truncate title, summary, geminiSummary
@@ -71,19 +68,6 @@ function getCard(card: any, idx: number, type: 'legislation' | 'post' | 'rep', u
         </div>
       );
     }
-    case 'post': {
-      // Truncate title/content
-      const post = {
-        ...card,
-        title: truncate(card.title, 100),
-        content: truncate(card.content, 100),
-      };
-      return (
-        <div className="w-80 min-w-80 mx-2 rounded-xl overflow-hidden">
-          <PostCard post={post} />
-        </div>
-      );
-    }
     case 'rep':
       return (
         <div className="w-80 min-w-80 mx-2 rounded-xl overflow-hidden">
@@ -101,16 +85,12 @@ export default function ParallaxShowcase() {
   const { data: legislation, loading: loadingLeg, error: errorLeg } = useRecentData<Legislation>(
     '/api/legislation?limit=100&sortBy=updatedAt&sortDir=desc', 'legislations'
   );
-  const { data: posts, loading: loadingPosts, error: errorPosts } = useRecentData<Post>(
-    '/api/posts?limit=100', 'posts'
-  );
   const { data: reps, loading: loadingReps, error: errorReps } = useRecentData<Representative>(
     '/api/representatives?pageSize=100&sortBy=name', 'representatives'
   );
 
   // Duplicate for seamless loop
   const legislationCards = [...legislation, ...legislation];
-  const postCards = [...posts, ...posts];
   const repCards = [...reps, ...reps];
 
   // Animation speed: px/sec
@@ -124,13 +104,12 @@ export default function ParallaxShowcase() {
   };
 
   const legislationDuration = getDuration(legislationCards);
-  const postDuration = getDuration(postCards);
   const repDuration = getDuration(repCards);
 
   return (
     <div className="relative w-full overflow-x-hidden py-12 bg-gradient-to-b from-background/80 to-muted/60 rounded-md overflow-hidden">
-      <h2 className="text-3xl md:text-4xl font-bold mb-8 text-center tracking-tight">See What’s Happening</h2>
-      <div className="w-full flex flex-col md:flex-row items-stretch justify-center gap-8 max-w-6xl mx-auto">
+      <h2 className="text-3xl md:text-4xl font-bold mb-8 text-center tracking-tight">See What's Happening</h2>
+      <div className="w-full flex flex-col md:flex-row items-stretch justify-center gap-8 max-w-4xl mx-auto">
         {/* Legislation Column */}
         <div className="flex-1 flex flex-col items-center rounded-xl overflow-hidden">
           <div className="relative h-96 w-full overflow-hidden">
@@ -152,31 +131,7 @@ export default function ParallaxShowcase() {
             )}
           </div>
           <Link href="/legislation" passHref legacyBehavior>
-            <a className="mt-2 inline-block px-4 py-2 rounded-lg bg-primary text-primary-foreground font-semibold shadow hover:bg-primary/90 transition-colors text-center w-full max-w-xs">Recent Legislation</a>
-          </Link>
-        </div>
-        {/* Posts Column */}
-        <div className="flex-1 flex flex-col items-center rounded-xl overflow-hidden">
-          <div className="relative h-96 w-full overflow-hidden">
-            {loadingPosts ? (
-              <div className="flex items-center justify-center h-full">Loading...</div>
-            ) : errorPosts ? (
-              <div className="text-red-500 text-center">{errorPosts}</div>
-            ) : (
-              <div
-                className="absolute left-0 top-0 w-full animate-marquee-vert-reverse flex flex-col"
-                style={{ animationDuration: `${postDuration}s` }}
-              >
-                {postCards.map((card, i) => (
-                  <div key={i} className="mb-4 flex justify-center">
-                    {getCard(card, i, 'post')}
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-          <Link href="/posts" passHref legacyBehavior>
-            <a className="mt-2 inline-block px-4 py-2 rounded-lg bg-secondary text-secondary-foreground font-semibold shadow hover:bg-secondary/90 transition-colors text-center w-full max-w-xs">Community Posts</a>
+            <a className="mt-2 inline-block px-4 py-2 rounded-lg bg-primary text-primary-foreground font-semibold shadow hover:bg-primary/90 transition-colors text-center w-full max-w-xs">AI Legislation</a>
           </Link>
         </div>
         {/* Representatives Column */}
@@ -209,17 +164,8 @@ export default function ParallaxShowcase() {
           0% { transform: translateY(0); }
           100% { transform: translateY(-50%); }
         }
-        @keyframes marquee-vert-reverse {
-          0% { transform: translateY(-50%); }
-          100% { transform: translateY(0); }
-        }
         .animate-marquee-vert {
           animation-name: marquee-vert;
-          animation-timing-function: linear;
-          animation-iteration-count: infinite;
-        }
-        .animate-marquee-vert-reverse {
-          animation-name: marquee-vert-reverse;
           animation-timing-function: linear;
           animation-iteration-count: infinite;
         }

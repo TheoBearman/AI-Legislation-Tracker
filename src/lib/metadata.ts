@@ -31,21 +31,21 @@ export function generateMetadata({
   author,
   section,
 }: PageMetadata): Metadata {
-  const fullTitle = title.includes('StatePulse') ? title : `${title} | StatePulse`;
+  const fullTitle = title.includes('AI Legislation Tracker') ? title : `${title} | AI Legislation Tracker`;
   const fullUrl = url ? `${baseUrl}${url}` : baseUrl;
 
   return {
     title: fullTitle,
     description,
-    keywords: [...keywords, 'StatePulse', 'politics', 'legislation', 'representatives', 'civic engagement'].join(', '),
-    authors: author ? [{ name: author }] : [{ name: 'StatePulse' }],
-    creator: 'StatePulse',
-    publisher: 'StatePulse',
+    keywords: [...keywords, 'AI Legislation Tracker', 'AI policy', 'tech regulation', 'government'].join(', '),
+    authors: author ? [{ name: author }] : [{ name: 'AI Legislation Tracker' }],
+    creator: 'AI Legislation Tracker',
+    publisher: 'AI Legislation Tracker',
     openGraph: {
       title: fullTitle,
       description,
       url: fullUrl,
-      siteName: 'StatePulse',
+      siteName: 'AI Legislation Tracker',
       images: [
         {
           url: image,
@@ -65,8 +65,8 @@ export function generateMetadata({
       title: fullTitle,
       description,
       images: [image],
-      creator: '@StatePulse',
-      site: '@StatePulse',
+      creator: '@AILegislationTracker',
+      site: '@AILegislationTracker',
     },
     robots: {
       index: true,
@@ -88,30 +88,30 @@ export function generateMetadata({
 // Pre-defined metadata for common pages
 export const pageMetadata = {
   home: generateMetadata({
-    title: 'StatePulse - Stay Informed on U.S. State-Level Developments',
-    description: 'Track legislation, follow representatives, and stay engaged with state and federal politics. Get real-time updates on policy changes that affect you.',
-    keywords: ['politics', 'legislation', 'state government', 'federal government', 'civic engagement', 'policy tracking'],
+    title: 'AI Legislation Tracker - Monitor AI Policy Across the US',
+    description: 'Track artificial intelligence legislation, executive orders, and policy developments across state and federal governments.',
+    keywords: ['AI policy', 'artificial intelligence', 'legislation', 'state government', 'federal government', 'tech policy'],
     url: '/',
   }),
 
   representatives: generateMetadata({
-    title: 'Representatives - Find Your Elected Officials',
-    description: 'Search and filter all state and federal representatives. Find who represents you and track their voting records, positions, and policy stances.',
-    keywords: ['representatives', 'elected officials', 'congress', 'state legislature', 'voting records'],
+    title: 'Representatives - Find Policymakers',
+    description: 'Search and filter state and federal representatives involved in AI policy. Track their voting records and stances on artificial intelligence.',
+    keywords: ['representatives', 'policymakers', 'congress', 'state legislature', 'AI policy'],
     url: '/representatives',
   }),
 
   legislation: generateMetadata({
-    title: 'Policy Updates - Latest Legislative Developments',
-    description: 'Stay updated with the latest policy developments. Filter by category or search for specific topics affecting state and federal legislation.',
-    keywords: ['legislation', 'policy updates', 'bills', 'law', 'government policy'],
+    title: 'AI Policy Updates - Latest Legislative Developments',
+    description: 'Stay updated with the latest AI policy developments. Filter by category or search for specific AI topics affecting state and federal legislation.',
+    keywords: ['legislation', 'AI policy', 'artificial intelligence', 'bills', 'tech regulation'],
     url: '/legislation',
   }),
 
   dashboard: generateMetadata({
-    title: 'Dashboard - Comprehensive Visualization of Policy Trends',
-    description: 'Interactive map powered analysis for political activity, representatives, trending topics, and district boundaries',
-    keywords: ['dashboard', 'political tracking', 'visualization', 'map', 'interactive', 'district boundaries', 'policy trends', 'statepulse'],
+    title: 'Dashboard - AI Policy Visualization',
+    description: 'Interactive map powered analysis for AI policy trends, representatives, and legislative activity.',
+    keywords: ['dashboard', 'AI tracking', 'visualization', 'map', 'interactive', 'policy trends'],
     url: '/dashboard',
   }),
 
@@ -123,44 +123,44 @@ export const pageMetadata = {
   }),
 
   about: generateMetadata({
-    title: 'About StatePulse - Our Mission for Civic Engagement',
-    description: 'Learn about StatePulse\'s mission to make government information accessible and promote civic engagement through technology.',
-    keywords: ['about', 'mission', 'civic engagement', 'government transparency'],
+    title: 'About AI Legislation Tracker',
+    description: 'Learn about our mission to track and analyze artificial intelligence legislation across the United States.',
+    keywords: ['about', 'mission', 'AI safety', 'tech policy', 'transparency'],
     url: '/about',
   }),
 
   tracker: generateMetadata({
-    title: 'Bill Tracker - Follow Legislative Progress',
-    description: 'Track the progress of important bills and legislation through the legislative process. Get notified of status changes and votes.',
-    keywords: ['bill tracker', 'legislative progress', 'bill status', 'voting tracker'],
+    title: 'Bill Tracker - Follow AI Legislation',
+    description: 'Track the progress of important AI bills and legislation through the legislative process.',
+    keywords: ['bill tracker', 'legislative progress', 'bill status', 'AI regulation'],
     url: '/tracker',
   }),
 
   civic: generateMetadata({
-    title: 'Civic Engagement - Get Involved in Democracy',
-    description: 'Tools and resources for civic engagement. Find ways to participate in democracy and make your voice heard.',
-    keywords: ['civic engagement', 'democracy', 'political participation', 'citizen involvement'],
+    title: 'Civic Engagement - Get Involved',
+    description: 'Tools and resources for engaging with AI policy. Find ways to participate and make your voice heard.',
+    keywords: ['civic engagement', 'AI policy', 'political participation'],
     url: '/civic',
   }),
 
   posts: generateMetadata({
-    title: 'Community Posts - Political Discussion',
-    description: 'Join the community discussion on political topics, share insights, and engage with other politically active citizens.',
-    keywords: ['community', 'political discussion', 'posts', 'civic community'],
+    title: 'Community Posts - AI Policy Discussion',
+    description: 'Join the community discussion on AI policy topics, share insights, and engage with others.',
+    keywords: ['community', 'policy discussion', 'AI safety', 'tech ethics'],
     url: '/posts',
   }),
 
   privacy: generateMetadata({
-    title: 'Privacy Policy - How We Protect Your Data',
-    description: 'Learn how StatePulse collects, uses, and protects your personal information and political preferences.',
-    keywords: ['privacy policy', 'data protection', 'user privacy'],
+    title: 'Privacy Policy',
+    description: 'Learn how AI Legislation Tracker collects, uses, and protects your information.',
+    keywords: ['privacy policy', 'data protection'],
     url: '/privacy',
   }),
 
   terms: generateMetadata({
-    title: 'Terms of Service - Platform Guidelines',
-    description: 'Terms of service and community guidelines for using StatePulse platform and services.',
-    keywords: ['terms of service', 'community guidelines', 'platform rules'],
+    title: 'Terms of Service',
+    description: 'Terms of service and guidelines for using the AI Legislation Tracker platform.',
+    keywords: ['terms of service', 'guidelines'],
     url: '/terms',
   }),
 };
@@ -169,8 +169,8 @@ export const pageMetadata = {
 export function generateRepresentativeMetadata(name: string, title: string, state?: string) {
   return generateMetadata({
     title: `${name} - ${title}${state ? ` (${state})` : ''}`,
-    description: `View ${name}'s profile, voting record, policy positions, and latest updates. Track this ${title.toLowerCase()}'s activities and positions on key issues.`,
-    keywords: [name, title.toLowerCase(), 'representative profile', 'voting record', state].filter(Boolean),
+    description: `View ${name}'s AI policy record and updates. Track this ${title.toLowerCase()}'s activities on artificial intelligence issues.`,
+    keywords: [name, title.toLowerCase(), 'AI policy', 'voting record', state].filter(Boolean) as string[],
     url: `/representatives/${name.toLowerCase().replace(/\s+/g, '-')}`,
   });
 }
@@ -178,8 +178,8 @@ export function generateRepresentativeMetadata(name: string, title: string, stat
 export function generateLegislationMetadata(billTitle: string, billNumber?: string, jurisdiction?: string, summary?: string) {
   return generateMetadata({
     title: `${billNumber ? `${jurisdiction} - ${billNumber} ` : ''}${billTitle}`,
-    description: summary || `Details and analysis of ${billTitle}. Track the progress, view voting records, and understand the impact of this legislation.`,
-    keywords: ['legislation', 'bill', billNumber, billTitle.toLowerCase(), 'policy', jurisdiction].filter(Boolean),
+    description: summary || `Details and analysis of ${billTitle}. Track the progress and impact of this AI legislation.`,
+    keywords: ['legislation', 'bill', billNumber, billTitle.toLowerCase(), 'AI policy', jurisdiction].filter(Boolean) as string[],
     type: 'article',
   });
 }
@@ -187,8 +187,8 @@ export function generateLegislationMetadata(billTitle: string, billNumber?: stri
 export function generatePostMetadata(title: string, excerpt?: string, author?: string, publishedTime?: string) {
   return generateMetadata({
     title,
-    description: excerpt || `Community discussion post: ${title}`,
-    keywords: ['community post', 'political discussion', 'civic engagement'],
+    description: excerpt || `AI policy discussion: ${title}`,
+    keywords: ['community post', 'AI policy', 'discussion'],
     type: 'article',
     author,
     publishedTime,
@@ -199,7 +199,7 @@ export function generatePostMetadata(title: string, excerpt?: string, author?: s
 export function generateUserProfileMetadata(username: string) {
   return generateMetadata({
     title: `${username}'s Profile`,
-    description: `View ${username}'s profile, posts, and civic engagement activity on StatePulse.`,
+    description: `View ${username}'s profile and activity on AI Legislation Tracker.`,
     keywords: ['user profile', 'community member', username],
     url: `/users/${username}`,
   });

@@ -50,14 +50,14 @@ export async function POST(req: NextRequest) {
                 if (email) {
                     try {
                         const html = renderBrandedEmail({
-                            heading: 'Welcome to StatePulse!',
-                            message: `Hi ${firstName || 'there'},<br>Welcome to StatePulse! You can now track legislation and receive updates on the issues you care about.`,
+                            heading: 'Welcome to AI Legislation Tracker!',
+                            message: `Hi ${firstName || 'there'},\u003cbr\u003eWelcome to AI Legislation Tracker! You can now track legislation and receive updates on the issues you care about.`,
                             ctaUrl: 'https://statepulse.me/dashboard',
                             ctaText: 'Go to Dashboard',
                         });
                         await sendEmail({
                             to: email,
-                            subject: 'Welcome to StatePulse!',
+                            subject: 'Welcome to AI Legislation Tracker!',
                             html,
                         });
                     } catch (e) {

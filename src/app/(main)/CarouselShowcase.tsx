@@ -172,10 +172,10 @@ export default function CarouselShowcase() {
       <div className="container mx-auto">
         <div className="text-center mb-12">
           <h2 className="text-4xl font-bold mb-4 tracking-tight">
-            Explore StatePulse Features
+            Explore Features
           </h2>
           <p className="text-muted-foreground text-lg max-w-2xl mx-auto leading-relaxed">
-            Discover how StatePulse helps you stay informed about legislation, connect with representatives, and engage with your community.
+            Discover how AI Legislation Tracker helps you stay informed about legislation, connect with representatives, and engage with your community.
           </p>
         </div>
 
@@ -229,7 +229,7 @@ export default function CarouselShowcase() {
                   <Button asChild size="lg" className="w-fit group">
                     <Link href={currentItem.link}>
                       Explore {currentItem.category === 'legislation' ? 'Legislation' :
-                              currentItem.category === 'representatives' ? 'Representatives' : 'Posts'}
+                        currentItem.category === 'representatives' ? 'Representatives' : 'Posts'}
                       <ExternalLink className="ml-2 h-4 w-4 group-hover:translate-x-1 transition-transform" />
                     </Link>
                   </Button>
@@ -345,11 +345,10 @@ export default function CarouselShowcase() {
                 <button
                   key={index}
                   onClick={() => goToSlide(index)}
-                  className={`w-3 h-3 rounded-full transition-all duration-200 ${
-                    index === currentIndex
+                  className={`w-3 h-3 rounded-full transition-all duration-200 ${index === currentIndex
                       ? `${categoryConfig[currentItem.category].accentColor}`
                       : 'bg-slate-300 dark:bg-slate-600 hover:bg-slate-400 dark:hover:bg-slate-500'
-                  }`}
+                    }`}
                 />
               ))}
             </div>

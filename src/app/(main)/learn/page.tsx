@@ -19,7 +19,7 @@ const learnCards = [
 		href: '/learn/faq',
 		icon: '',
 		title: 'FAQ',
-		desc: 'Answers to common questions about StatePulse and the legislative process.',
+		desc: 'Answers to common questions about the AI Legislation Tracker and the legislative process.',
 		color: 'bg-green-50 border-green-200',
 	},
 ];

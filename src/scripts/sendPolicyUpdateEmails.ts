@@ -13,7 +13,7 @@ type ClerkUser = {
 // Helper function to parse location information from topic strings
 function parseTopicForLocation(topic: string) {
   const topicLower = topic.toLowerCase();
-  
+
   // State names mapping (longer names first to prevent partial matches)
   const stateNames = [
     'new hampshire', 'new jersey', 'new mexico', 'new york', 'north carolina', 'north dakota',
@@ -28,7 +28,7 @@ function parseTopicForLocation(topic: string) {
 
   // Federal keywords
   const federalKeywords = [
-    'congress', 'united states congress', 'us congress', 'federal', 'national', 
+    'congress', 'united states congress', 'us congress', 'federal', 'national',
     'house of representatives', 'senate', 'capitol hill', 'washington dc', 'dc congress'
   ];
 
@@ -43,7 +43,7 @@ function parseTopicForLocation(topic: string) {
     });
     // Remove common prepositions and connecting words
     cleanedSearch = cleanedSearch.replace(/\b(in|for|about|on|at|from|to|with|by)\s*/gi, '').trim();
-    
+
     return {
       search: cleanedSearch,
       showCongress: true,
@@ -58,9 +58,9 @@ function parseTopicForLocation(topic: string) {
       let cleanedSearch = topic;
       const regex = new RegExp(`\\b${state.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'gi');
       cleanedSearch = cleanedSearch.replace(regex, '').replace(/\s+/g, ' ').trim();
-    // Remove common prepositions and connecting words
-    cleanedSearch = cleanedSearch.replace(/\b(in|for|about|on|at|from|to|with|by)\s*/gi, '').trim();      // Capitalize state name properly
-      const properStateName = state.split(' ').map(word => 
+      // Remove common prepositions and connecting words
+      cleanedSearch = cleanedSearch.replace(/\b(in|for|about|on|at|from|to|with|by)\s*/gi, '').trim();      // Capitalize state name properly
+      const properStateName = state.split(' ').map(word =>
         word.charAt(0).toUpperCase() + word.slice(1)
       ).join(' ');
 
@@ -85,10 +85,10 @@ async function searchLegislationByTopicReplacement(topic: string, daysBack: numb
   try {
     // Calculate cutoff date for filtering recent legislation
     const cutoffDate = new Date(Date.now() - (daysBack * 24 * 60 * 60 * 1000));
-    
+
     // Parse the topic to extract location information
     const { search, showCongress, jurisdictionName } = parseTopicForLocation(topic);
-    
+
     return await getAllLegislationWithFiltering({
       search: search || undefined,
       limit: 100,
@@ -435,7 +435,7 @@ async function main() {
           // Ignore Clerk errors
         }
         if (!email) {
-          const userDoc = await usersCol.findOne({ $or: [ { id: userId }, { clerkId: userId } ] });
+          const userDoc = await usersCol.findOne({ $or: [{ id: userId }, { clerkId: userId }] });
           if (userDoc && userDoc.emailAddress) {
             email = userDoc.emailAddress;
             source = 'users collection';
@@ -472,7 +472,7 @@ async function main() {
           if (isWeeklyMode) {
             const totalUpdates = topicCount + repCount;
             if (hasTopics && hasSponsorships) {
-              heading = `Your Weekly StatePulse Digest`;
+              heading = `Your Weekly AI Legislation Digest`;
               subject = `Weekly Digest: ${totalUpdates} Legislative Updates`;
             } else if (hasTopics) {
               heading = `Your Weekly Policy Tracking Digest`;
@@ -519,7 +519,7 @@ async function main() {
               to: email,
               subject,
               html,
-              text: `You have new legislation updates on StatePulse. ${isWeeklyMode ? 'This is your weekly digest.' : ''}`
+              text: `You have new AI legislation updates. ${isWeeklyMode ? 'This is your weekly digest.' : ''}`
             });
 
             const modeText = isWeeklyMode ? 'weekly digest' : 'daily notification';

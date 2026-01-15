@@ -1,7 +1,9 @@
 
 // Import the Genkit core libraries and plugins.
-import {genkit, z} from "genkit";
-import {vertexAI, gemini20Flash} from "@genkit-ai/vertexai";
+// Import the Genkit core libraries and plugins.
+import { genkit, z } from "genkit";
+import { openAICompatible, defineCompatOpenAIModel } from "@genkit-ai/compat-oai";
+import OpenAI from "openai";
 
 // Cloud Functions for Firebase supports Genkit natively.
 // The onCallGenkit function creates a callable function from a Genkit action.
@@ -16,23 +18,38 @@ import {
 // Genkit models generally depend on an API key. APIs should be stored in Cloud
 // Secret Manager so that access to these sensitive values can be controlled.
 // defineSecret does this for you automatically.
-// If you are using Google generative AI, get an API key
-// at https://aistudio.google.com/app/apikey
-import {defineSecret} from "firebase-functions/params";
-const apiKey = defineSecret("GOOGLE_GENAI_API_KEY");
+// For OpenRouter, use OPENROUTER_API_KEY and OPENROUTER_MODEL
+import { defineSecret, defineString } from "firebase-functions/params";
+const apiKey = defineSecret("OPENROUTER_API_KEY");
+const modelName = defineString("OPENROUTER_MODEL", { default: "google/gemini-2.0-flash-001" });
 
 // The Firebase telemetry plugin exports a combination of metrics, traces, and
 // logs to Google Cloud Observability. See
 // https://firebase.google.com/docs/genkit/observability/telemetry-collection.
-import {enableFirebaseTelemetry} from "@genkit-ai/firebase";
+import { enableFirebaseTelemetry } from "@genkit-ai/firebase";
 enableFirebaseTelemetry();
+
+const openRouterClient = new OpenAI({
+  apiKey: apiKey.value(),
+  baseURL: 'https://openrouter.ai/api/v1',
+});
+
+// Define a configurable OpenRouter model
+const openRouterModel = defineCompatOpenAIModel({
+  name: 'openrouter/configurable',
+  client: openRouterClient as any,
+  requestBuilder: (request, body) => {
+    body.model = modelName.value();
+  },
+});
 
 const ai = genkit({
   plugins: [
-    // Load the Vertex AI plugin. You can optionally specify your project ID
-    // by passing in a config object; if you don't, the Vertex AI plugin uses
-    // the value from the GCLOUD_PROJECT environment variable.
-    vertexAI({location: "us-central1"}),
+    openAICompatible({
+      name: 'openrouter',
+      apiKey: apiKey.value(),
+      baseURL: 'https://openrouter.ai/api/v1',
+    }),
   ],
 });
 
@@ -42,12 +59,12 @@ const menuSuggestionFlow = ai.defineFlow({
   inputSchema: z.string().describe("A restaurant theme").default("seafood"),
   outputSchema: z.string(),
   streamSchema: z.string(),
-}, async (subject, {sendChunk}) => {
+}, async (subject, { sendChunk }) => {
   // Construct a request and send it to the model API.
   const prompt =
     `Suggest an item for the menu of a ${subject} themed restaurant`;
-  const {response, stream} = ai.generateStream({
-    model: gemini20Flash,
+  const { response, stream } = ai.generateStream({
+    model: openRouterModel,
     prompt: prompt,
     config: {
       temperature: 1,

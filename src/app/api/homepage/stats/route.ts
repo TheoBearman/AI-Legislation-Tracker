@@ -51,6 +51,28 @@ export async function GET() {
             ],
             topSubjects: [
               { $unwind: "$subjects" },
+              {
+                $match: {
+                  subjects: {
+                    $in: [
+                      "Artificial Intelligence",
+                      "Technology",
+                      "Privacy",
+                      "Data",
+                      "Surveillance",
+                      "Biometrics",
+                      "Automated",
+                      "Algorithms",
+                      "Internet",
+                      "Cybersecurity",
+                      "Telecommunications",
+                      "Civil Rights",
+                      "Consumer Protection",
+                      "Commerce"
+                    ]
+                  }
+                }
+              },
               { $group: { _id: "$subjects", count: { $sum: 1 } } },
               { $sort: { count: -1 } },
               { $limit: 5 },

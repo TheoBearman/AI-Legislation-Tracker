@@ -6,9 +6,8 @@ import Link from 'next/link';
 import { CollapsibleSponsors } from '@/components/features/CollapsibleSponsors';
 import { CollapsibleTimeline } from '@/components/features/CollapsibleTimeline';
 import { AnimatedSection } from '@/components/ui/AnimatedSection';
-import { BookmarkButton } from '@/components/features/BookmarkButton';
 import { ShareButton } from '@/components/ui/ShareButton';
-import { VotingPredictionSection } from '@/components/features/VotingPredictionSection';
+
 import { RelatedBillsWrapper } from '@/components/features/RelatedBillsWrapper';
 import { RelatedBillsLoading } from '@/components/features/RelatedBillsLoading';
 import { VotingBillPositionsWrapper } from '@/components/features/VotingBillPositionsWrapper';
@@ -18,7 +17,7 @@ import { generateLegislationMetadata } from '@/lib/metadata';
 import { Metadata } from 'next';
 import { Suspense } from 'react';
 import { enactedPatterns } from "@/types/legislation";
-import {STATE_MAP} from "@/types/geo";
+import { STATE_MAP } from "@/types/geo";
 
 // Helper for consistent UTC date formatting
 const formatDateUTC = (date: Date) => date.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric', timeZone: 'UTC' });
@@ -30,7 +29,7 @@ export async function generateMetadata({ params }: { params: { id: string } }): 
     const legislation = await getLegislationById(id);
     if (!legislation) {
       return {
-        title: 'Legislation Not Found | StatePulse',
+        title: 'Legislation Not Found | AI Legislation Tracker',
         description: 'The requested legislation could not be found.',
       };
     }
@@ -51,7 +50,7 @@ export async function generateMetadata({ params }: { params: { id: string } }): 
     );
   } catch (error) {
     return {
-      title: 'Legislation Not Found | StatePulse',
+      title: 'Legislation Not Found | AI Legislation Tracker',
       description: 'The requested legislation could not be found.',
     };
   }
@@ -200,7 +199,6 @@ export default async function LegislationDetailPage({ params }: { params: { id: 
               </CardDescription>
             </div>
             <div className="flex gap-2 flex-shrink-0 self-start">
-              <BookmarkButton legislationId={id} />
               <ShareButton type="bill" id={id} title={title} jurisdiction={jurisdictionAb} identifier={identifier} />
             </div>
           </div>
@@ -299,6 +297,18 @@ export default async function LegislationDetailPage({ params }: { params: { id: 
             </AnimatedSection>
           )}
 
+          {legislation.fullText && (
+            <AnimatedSection>
+              <h3 className="text-xl font-semibold text-foreground mb-3 flex items-center">
+                <FileText className="mr-2 h-6 w-6 text-primary flex-shrink-0" />
+                {classification && classification.includes('executive-order') ? 'Executive Order Text' : 'Legislation Text'}
+              </h3>
+              <div className="p-4 border rounded-md bg-muted/30 whitespace-pre-wrap font-mono text-sm max-h-96 overflow-y-auto">
+                {legislation.fullText}
+              </div>
+            </AnimatedSection>
+          )}
+
           <DetailedAISummarySection legislation={legislation} />
 
           {versions && versions.length > 0 && (
@@ -347,9 +357,7 @@ export default async function LegislationDetailPage({ params }: { params: { id: 
             </Suspense>
           </AnimatedSection>
 
-          <AnimatedSection>
-            <VotingPredictionSection legislationId={id} />
-          </AnimatedSection>
+
         </CardContent>
       </Card>
     </div>

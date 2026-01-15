@@ -1,4 +1,4 @@
-import {AnimatedSection} from "@/components/ui/AnimatedSection";
+import { AnimatedSection } from "@/components/ui/AnimatedSection";
 import { pageMetadata } from '@/lib/metadata';
 
 export const metadata = pageMetadata.terms;
@@ -7,20 +7,20 @@ export default function TermsOfService() {
   return (
     <div className="container mx-auto px-4 py-8 max-w-4xl">
       <AnimatedSection>
-      <h1 className="text-3xl font-bold mb-8">Terms of Service</h1>
+        <h1 className="text-3xl font-bold mb-8">Terms of Service</h1>
       </AnimatedSection>
       <div className="prose prose-gray max-w-none">
         <AnimatedSection>
-        <p className="text-muted-foreground mb-6">
-          Last updated: {new Date().toLocaleDateString()}
-        </p>
+          <p className="text-muted-foreground mb-6">
+            Last updated: {new Date().toLocaleDateString()}
+          </p>
         </AnimatedSection>
 
         <AnimatedSection>
           <section className="mb-8">
             <h2 className="text-2xl font-semibold mb-4">Acceptance of Terms</h2>
             <p className="mb-4">
-              By accessing and using StatePulse ("the Service"), you accept and agree to be bound by the terms and provision of this agreement. If you do not agree to abide by the above, please do not use this service.
+              By accessing and using AI Legislation Tracker ("the Service"), you accept and agree to be bound by the terms and provision of this agreement. If you do not agree to abide by the above, please do not use this service.
             </p>
           </section>
         </AnimatedSection>
@@ -29,7 +29,7 @@ export default function TermsOfService() {
           <section className="mb-8">
             <h2 className="text-2xl font-semibold mb-4">Description of Service</h2>
             <p className="mb-4">
-              StatePulse is a web application that provides information about state legislation, civic engagement opportunities, and policy tracking. We aggregate publicly available legislative data to help users stay informed about government activities.
+              AI Legislation Tracker is a web application that provides information about AI-related state and federal legislation. We aggregate publicly available legislative data to help users stay informed about government activities regarding artificial intelligence.
             </p>
           </section>
         </AnimatedSection>
@@ -68,7 +68,7 @@ export default function TermsOfService() {
           <section className="mb-8">
             <h2 className="text-2xl font-semibold mb-4">Content and Data</h2>
             <p className="mb-4">
-              The legislative data and information provided through StatePulse is sourced from publicly available government databases and third-party APIs. While we strive for accuracy, we cannot guarantee the completeness or timeliness of all information.
+              The legislative data and information provided through AI Legislation Tracker is sourced from publicly available government databases and third-party APIs. While we strive for accuracy, we cannot guarantee the completeness or timeliness of all information.
             </p>
             <p className="mb-4">
               You acknowledge that:
@@ -76,7 +76,7 @@ export default function TermsOfService() {
             <ul className="list-disc list-inside mb-4 space-y-1">
               <li>Information may not always be up-to-date or complete</li>
               <li>You should verify important information through official sources</li>
-              <li>StatePulse is not a substitute for professional legal or political advice</li>
+              <li>AI Legislation Tracker is not a substitute for professional legal or political advice</li>
             </ul>
           </section>
         </AnimatedSection>
@@ -85,7 +85,7 @@ export default function TermsOfService() {
           <section className="mb-8">
             <h2 className="text-2xl font-semibold mb-4">Intellectual Property</h2>
             <p className="mb-4">
-              The Service and its original content, features, and functionality are owned by StatePulse and are protected by intellectual property laws. You may not reproduce, distribute, or create derivative works without our express written permission.
+              The Service and its original content, features, and functionality are owned by AI Legislation Tracker and are protected by intellectual property laws. You may not reproduce, distribute, or create derivative works without our express written permission.
             </p>
           </section>
         </AnimatedSection>
@@ -103,7 +103,7 @@ export default function TermsOfService() {
           <section className="mb-8">
             <h2 className="text-2xl font-semibold mb-4">Disclaimers</h2>
             <p className="mb-4">
-              The Service is provided "as is" without any representations or warranties, express or implied. StatePulse makes no representations or warranties in relation to this Service or the information and materials provided.
+              The Service is provided "as is" without any representations or warranties, express or implied. AI Legislation Tracker makes no representations or warranties in relation to this Service or the information and materials provided.
             </p>
           </section>
         </AnimatedSection>
@@ -112,7 +112,7 @@ export default function TermsOfService() {
           <section className="mb-8">
             <h2 className="text-2xl font-semibold mb-4">Limitation of Liability</h2>
             <p className="mb-4">
-              In no event shall StatePulse, its directors, employees, or agents be liable for any indirect, incidental, special, consequential, or punitive damages, including without limitation, loss of profits, data, use, goodwill, or other intangible losses.
+              In no event shall AI Legislation Tracker, its directors, employees, or agents be liable for any indirect, incidental, special, consequential, or punitive damages, including without limitation, loss of profits, data, use, goodwill, or other intangible losses.
             </p>
           </section>
         </AnimatedSection>

@@ -1,22 +1,22 @@
 "use client";
 
-import {useEffect, useState} from "react";
-import {AnimatePresence, motion} from "framer-motion";
-import {useSearchParams} from "next/navigation";
+import { useEffect, useState } from "react";
+import { AnimatePresence, motion } from "framer-motion";
+import { useSearchParams } from "next/navigation";
 import dynamic from "next/dynamic";
-import {Calendar, FileText, Map, MessageSquare, Vote} from "lucide-react";
-import {AddressSearch} from "./AddressSearch";
-import {VotingInfo} from "./VotingInfo";
-import {PublicHearings} from "./PublicHearings";
-import {BallotInformation} from "./BallotInformation";
-import {MessageGenerator} from "./MessageGenerator";
-import {RepresentativesResults} from "./RepresentativesResults";
-import {ApiResponse, Representative} from "@/types/representative";
-import {AddressSuggestion, STATE_COORDINATES, STATE_MAP} from "@/types/geo";
-import {getStateAbbrFromString, getStateAbbreviation} from "@/lib/locationUtils";
+import { Calendar, FileText, Map, MessageSquare, Vote } from "lucide-react";
+import { AddressSearch } from "./AddressSearch";
+import { VotingInfo } from "./VotingInfo";
+import { PublicHearings } from "./PublicHearings";
+import { BallotInformation } from "./BallotInformation";
+import { MessageGenerator } from "./MessageGenerator";
+import { RepresentativesResults } from "./RepresentativesResults";
+import { ApiResponse, Representative } from "@/types/representative";
+import { AddressSuggestion, STATE_COORDINATES, STATE_MAP } from "@/types/geo";
+import { getStateAbbrFromString, getStateAbbreviation } from "@/lib/locationUtils";
 
 // Dynamically import the map component to avoid SSR issues
-const RepresentativesMap = dynamic(() => import('./RepresentativesMap').then(mod => ({default: mod.RepresentativesMap})), {
+const RepresentativesMap = dynamic(() => import('./RepresentativesMap').then(mod => ({ default: mod.RepresentativesMap })), {
     ssr: false,
     loading: () => <div
         className="w-full h-80 bg-muted animate-pulse rounded-lg flex items-center justify-center">Loading map...</div>
@@ -118,16 +118,33 @@ export function RepresentativesFinder() {
         try {
             let apiUrl;
             let stateName = '';
-            for (const fullName of Object.keys(STATE_MAP)) {
-                if (location.display_name.includes(fullName)) {
-                    stateName = fullName;
-                    break;
+            // Try to get state from address object first (more reliable)
+            const addressState = location.address?.state;
+
+            // If not found in address object, try parsing display name
+            if (addressState) {
+                stateName = addressState;
+            } else {
+                for (const fullName of Object.keys(STATE_MAP)) {
+                    if (location.display_name.includes(fullName)) {
+                        stateName = fullName;
+                        break;
+                    }
                 }
             }
 
             if (location.lat && location.lon && location.lat !== 0 && location.lon !== 0) {
                 apiUrl = `/api/civic?lat=${location.lat}&lng=${location.lon}`;
-                if (stateName) apiUrl += `&stateName=${encodeURIComponent(stateName)}`;
+
+                if (stateName) {
+                    apiUrl += `&stateName=${encodeURIComponent(stateName)}`;
+                } else {
+                    // Start trying to derive abbr
+                    const derivedAbbr = getStateAbbreviation(location);
+                    if (derivedAbbr) {
+                        apiUrl += `&state=${encodeURIComponent(derivedAbbr)}`;
+                    }
+                }
             } else {
                 const stateAbbr = getStateAbbreviation(location);
                 if (!stateAbbr) {
@@ -253,7 +270,7 @@ export function RepresentativesFinder() {
             id: 'manual',
             display_name: query,
             address: {
-                state: state
+                state: state || undefined
             },
             lat: 0,
             lon: 0,
@@ -371,13 +388,13 @@ export function RepresentativesFinder() {
                 {showMap && userLocation && userLocation.lat !== 0 && userLocation.lon !== 0 && closestReps.length > 0 && (
                     <motion.div
                         className="space-y-4 mt-6"
-                        initial={{opacity: 0, y: 20}}
-                        animate={{opacity: 1, y: 0}}
-                        exit={{opacity: 0}}
-                        transition={{duration: 0.5, ease: "easeInOut"}}
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0 }}
+                        transition={{ duration: 0.5, ease: "easeInOut" }}
                     >
                         <div className="flex items-center gap-2">
-                            <Map className="h-5 w-5 text-primary"/>
+                            <Map className="h-5 w-5 text-primary" />
                             <h4 className="font-semibold">Interactive Map - District Boundaries</h4>
                         </div>
                         <RepresentativesMap
@@ -407,9 +424,9 @@ export function RepresentativesFinder() {
             />
             <motion.div
                 className="mt-8 border-t pt-6"
-                initial={{opacity: 0, y: 20}}
-                animate={{opacity: 1, y: 0}}
-                transition={{duration: 0.5, delay: 0.2, ease: "easeInOut"}}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.5, delay: 0.2, ease: "easeInOut" }}
             >
                 <h4 className="font-semibold mb-2 text-lg">Other</h4>
                 <p className="text-sm text-muted-foreground mb-4">Quick access to other civic information.</p>
@@ -419,7 +436,7 @@ export function RepresentativesFinder() {
                         disabled
                     >
                         <h5 className="font-medium flex items-center">
-                            <Vote className="mr-2 h-5 w-5 text-primary"/>
+                            <Vote className="mr-2 h-5 w-5 text-primary" />
                             Voting Dates & Deadlines
                             <span className="ml-2 text-xs text-muted-foreground">(coming soon)</span>
                         </h5>
@@ -430,7 +447,7 @@ export function RepresentativesFinder() {
                         disabled
                     >
                         <h5 className="font-medium flex items-center">
-                            <Calendar className="mr-2 h-5 w-5 text-primary"/>
+                            <Calendar className="mr-2 h-5 w-5 text-primary" />
                             Public Hearing Schedules
                             <span className="ml-2 text-xs text-muted-foreground">(coming soon)</span>
                         </h5>
@@ -441,7 +458,7 @@ export function RepresentativesFinder() {
                         disabled
                     >
                         <h5 className="font-medium flex items-center">
-                            <FileText className="mr-2 h-5 w-5 text-primary"/>
+                            <FileText className="mr-2 h-5 w-5 text-primary" />
                             Ballot Information
                             <span className="ml-2 text-xs text-muted-foreground">(coming soon)</span>
                         </h5>
@@ -455,7 +472,7 @@ export function RepresentativesFinder() {
                         }}
                     >
                         <h5 className="font-medium flex items-center">
-                            <MessageSquare className="mr-2 h-5 w-5 text-primary"/>
+                            <MessageSquare className="mr-2 h-5 w-5 text-primary" />
                             Generate Message to Legislator
                         </h5>
                         <p className="text-xs text-muted-foreground">Create personalized messages</p>
@@ -467,10 +484,10 @@ export function RepresentativesFinder() {
                     <motion.div
                         key={activeCivicTool}
                         className="mt-6 overflow-hidden"
-                        initial={{opacity: 0, height: 0}}
-                        animate={{opacity: 1, height: "auto"}}
-                        exit={{opacity: 0, height: 0}}
-                        transition={{duration: 0.4, ease: "easeInOut"}}
+                        initial={{ opacity: 0, height: 0 }}
+                        animate={{ opacity: 1, height: "auto" }}
+                        exit={{ opacity: 0, height: 0 }}
+                        transition={{ duration: 0.4, ease: "easeInOut" }}
                     >
                         {activeCivicTool === 'voting' && (
                             <VotingInfo

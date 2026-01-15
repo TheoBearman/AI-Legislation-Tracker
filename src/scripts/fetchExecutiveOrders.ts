@@ -3,9 +3,13 @@ import { connectToDatabase } from '@/lib/mongodb';
 import { fetchWhitehouseExecutiveOrders } from '@/services/whitehouseScraperService';
 import { scrapeStatesExecutiveOrders } from '@/services/governorScraperService';
 import { processExecutiveOrderSummarization } from '@/services/executiveOrderAIService';
+import { MongoClient } from 'mongodb';
 
 // Load environment variables
 config({ path: '../../.env' });
+
+// AI content detection pattern
+const AI_PATTERN = /artificial intelligence/i;
 
 interface FetchOptions {
   cutoffDate?: Date;
@@ -15,6 +19,51 @@ interface FetchOptions {
   processSummaries?: boolean;
   summaryLimit?: number;
   maxPages?: number;
+  aiOnly?: boolean; // NEW: Only keep AI-related executive orders
+}
+
+/**
+ * Filter out non-AI executive orders from the database
+ */
+async function filterNonAIExecutiveOrders(): Promise<{ deleted: number; remaining: number }> {
+  const uri = process.env.MONGODB_URI;
+  if (!uri) {
+    throw new Error('MONGODB_URI not set');
+  }
+
+  const client = new MongoClient(uri);
+
+  try {
+    await client.connect();
+    const db = client.db(process.env.MONGODB_DB_NAME || 'statepulse');
+    const executiveOrders = db.collection('executive_orders');
+
+    // Find executive orders that do NOT match AI criteria
+    const nonAIQuery = {
+      $and: [
+        { title: { $not: AI_PATTERN } },
+        { summary: { $not: AI_PATTERN } },
+        { full_text: { $not: AI_PATTERN } },
+        { geminiSummary: { $not: AI_PATTERN } }
+      ]
+    };
+
+    // Delete non-AI executive orders
+    const result = await executiveOrders.deleteMany(nonAIQuery);
+    const remaining = await executiveOrders.countDocuments();
+
+    return { deleted: result.deletedCount, remaining };
+  } finally {
+    await client.close();
+  }
+}
+
+/**
+ * Check if content contains AI-related keywords
+ */
+function containsAIContent(order: { title?: string; summary?: string; full_text?: string }): boolean {
+  const textToCheck = `${order.title || ''} ${order.summary || ''} ${order.full_text || ''}`;
+  return AI_PATTERN.test(textToCheck);
 }
 
 /**
@@ -25,13 +74,14 @@ export async function fetchAllExecutiveOrders(options: FetchOptions = {}) {
     cutoffDate = new Date(new Date().getTime() - 24 * 60 * 60 * 1000), // one day back,
     includeFederal = false, // Disabled Federal Register API
     includeWhitehouse = true,
-    includeGovernors = false, // Disabled governor scraping
+    includeGovernors = true, // Enabled governor scraping
     processSummaries = true,
-    summaryLimit = 20
+    summaryLimit = 20,
+    aiOnly = false // NEW: AI filtering flag
   } = options;
 
   console.log('Starting executive orders fetch pipeline...');
-  console.log(`Options: Federal=${includeFederal}, Whitehouse=${includeWhitehouse}, Governors=${includeGovernors}, CutoffDate=${cutoffDate}, Summaries=${processSummaries}`);
+  console.log(`Options: Federal=${includeFederal}, Whitehouse=${includeWhitehouse}, Governors=${includeGovernors}, CutoffDate=${cutoffDate}, Summaries=${processSummaries}, AI-Only=${aiOnly}`);
 
   let client;
 
@@ -78,6 +128,18 @@ export async function fetchAllExecutiveOrders(options: FetchOptions = {}) {
         console.log('Governor executive orders scraping completed');
       } catch (error) {
         console.error('Error scraping governor executive orders:', error);
+      }
+    }
+
+    // NEW: Filter non-AI executive orders if --ai-only flag is set
+    if (aiOnly) {
+      console.log('\n--- AI-Only Filter Active: Removing non-AI executive orders ---');
+      try {
+        const { deleted, remaining } = await filterNonAIExecutiveOrders();
+        console.log(`Removed ${deleted} non-AI executive orders`);
+        console.log(`Remaining AI-related executive orders: ${remaining}`);
+      } catch (error) {
+        console.error('Error filtering non-AI executive orders:', error);
       }
     }
 
@@ -144,9 +206,12 @@ async function main() {
         options.maxPages = parseInt(args[i + 1]);
         i++;
         break;
+      case '--ai-only':
+        options.aiOnly = true;
+        break;
       case '--help':
         console.log(`
-Usage: node fetchExecutiveOrders.js [options]
+Usage: npx tsx --env-file=.env.local src/scripts/fetchExecutiveOrders.ts [options]
 
 Options:
   --cutoff <date>        Cutoff date for fetching orders (ISO format)
@@ -155,13 +220,14 @@ Options:
   --no-governors         Skip governor executive orders
   --no-summaries         Skip AI summarization
   --summary-limit <num>  Limit for AI summarization (default: 20)
-  --max-pages <num>     Maximum number of Whitehouse pages to fetch (default: 11)
+  --max-pages <num>      Maximum number of Whitehouse pages to fetch (default: 100)
+  --ai-only              Only keep executive orders containing "artificial intelligence"
   --help                 Show this help message
 
 Examples:
-  node fetchExecutiveOrders.js
-  node fetchExecutiveOrders.js --cutoff 2023-01-01 --no-summaries
-  node fetchExecutiveOrders.js --no-federal --summary-limit 10
+  npx tsx --env-file=.env.local src/scripts/fetchExecutiveOrders.ts
+  npx tsx --env-file=.env.local src/scripts/fetchExecutiveOrders.ts --ai-only
+  npx tsx --env-file=.env.local src/scripts/fetchExecutiveOrders.ts --cutoff 2024-01-01 --ai-only
         `);
         process.exit(0);
     }

@@ -1,9 +1,9 @@
-import {NextRequest, NextResponse} from 'next/server';
-import {area} from '@turf/area';
-import {length} from '@turf/length';
-import {polygonToLine} from '@turf/polygon-to-line';
-import {bbox} from '@turf/bbox';
-import {feature} from 'topojson-client';
+import { NextRequest, NextResponse } from 'next/server';
+import { area } from '@turf/area';
+import { length } from '@turf/length';
+import { polygonToLine } from '@turf/polygon-to-line';
+import { bbox } from '@turf/bbox';
+import { feature } from 'topojson-client';
 
 /**
  * OPTIMIZED Gerrymandering Analysis API
@@ -205,10 +205,10 @@ function analyzeGeographicContext(polygon: any, globalBbox: number[]): any {
 
     const tolerance = 0.01;
     const isAtBoundary = (
-        Math.abs(minX - globalMinX) < tolerance ||
-        Math.abs(maxX - globalMaxX) < tolerance ||
-        Math.abs(minY - globalMinY) < tolerance ||
-        Math.abs(maxY - globalMaxY) < tolerance
+      Math.abs(minX - globalMinX) < tolerance ||
+      Math.abs(maxX - globalMaxX) < tolerance ||
+      Math.abs(minY - globalMinY) < tolerance ||
+      Math.abs(maxY - globalMaxY) < tolerance
     );
 
     // Simplified perimeter calculation for performance
@@ -325,7 +325,7 @@ async function loadGeoJSONOptimized(filePath: string, request: NextRequest): Pro
     const response = await fetch(fileUrl, {
       headers: {
         'Accept': 'application/json',
-        'User-Agent': 'StatePulse-API/1.0'
+        'User-Agent': 'AILegislationTracker-API/1.0'
       }
     });
 
@@ -386,12 +386,12 @@ async function processBatch(features: any[], globalBbox: number[], useEnhanced: 
     for (const feature of batch) {
       if (feature.geometry?.type === 'Polygon' || feature.geometry?.type === 'MultiPolygon') {
         const districtId = feature.properties?.GEOID ||
-            feature.properties?.ID ||
-            feature.properties?.DISTRICT ||
-            feature.properties?.CD ||
-            feature.properties?.NAME ||
-            feature.id ||
-            `district_${i}`;
+          feature.properties?.ID ||
+          feature.properties?.DISTRICT ||
+          feature.properties?.CD ||
+          feature.properties?.NAME ||
+          feature.id ||
+          `district_${i}`;
 
         if (useEnhanced) {
           const result = calculateEnhancedCompactness(feature, globalBbox);

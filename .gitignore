@@ -51,4 +51,5 @@ src/data/legislation2.json
 .junie
 .vscode
 .idx
-.idea
+.ideascrapers/
+data/

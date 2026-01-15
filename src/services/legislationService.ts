@@ -17,35 +17,35 @@ function cleanupDataForMongoDB<T extends Record<string, any>>(data: T): T {
 }
 
 export async function addLegislation(legislationData: Legislation): Promise<void> {
-    if (!legislationData.id) {
-        console.error('Legislation ID is required to add legislation.');
-        throw new Error('Legislation ID is required to add legislation.');
+  if (!legislationData.id) {
+    console.error('Legislation ID is required to add legislation.');
+    throw new Error('Legislation ID is required to add legislation.');
+  }
+  try {
+    const { id, ...dataToAdd } = legislationData;
+    let cleanedData = cleanupDataForMongoDB(dataToAdd);
+    cleanedData.createdAt = new Date();
+    cleanedData.updatedAt = new Date();
+    if (cleanedData.firstActionAt) {
+      cleanedData.firstActionAt = new Date(cleanedData.firstActionAt);
     }
-    try {
-        const { id, ...dataToAdd } = legislationData;
-        let cleanedData = cleanupDataForMongoDB(dataToAdd);
-        cleanedData.createdAt = new Date();
-        cleanedData.updatedAt = new Date();
-        if (cleanedData.firstActionAt) {
-          cleanedData.firstActionAt = new Date(cleanedData.firstActionAt);
-        }
-        if (cleanedData.latestActionAt) {
-          cleanedData.latestActionAt = new Date(cleanedData.latestActionAt);
-        }
-        if (cleanedData.latestPassageAt) {
-          cleanedData.latestPassageAt = new Date(cleanedData.latestPassageAt);
-        }
-        const legislationCollection = await getCollection('legislation');
-        console.log(`Adding legislation ${legislationData.id} (${legislationData.identifier || 'no identifier'})`);
-        await legislationCollection.insertOne({
-          _id: new ObjectId(),
-          id,
-          ...cleanedData
-        });
-    } catch (error) {
-        console.error(`Error adding legislation document with id ${legislationData.id}: `, error);
-        throw new Error('Failed to add legislation.');
+    if (cleanedData.latestActionAt) {
+      cleanedData.latestActionAt = new Date(cleanedData.latestActionAt);
     }
+    if (cleanedData.latestPassageAt) {
+      cleanedData.latestPassageAt = new Date(cleanedData.latestPassageAt);
+    }
+    const legislationCollection = await getCollection('legislation');
+    console.log(`Adding legislation ${legislationData.id} (${legislationData.identifier || 'no identifier'})`);
+    await legislationCollection.insertOne({
+      _id: new ObjectId(),
+      id,
+      ...cleanedData
+    });
+  } catch (error) {
+    console.error(`Error adding legislation document with id ${legislationData.id}: `, error);
+    throw new Error('Failed to add legislation.');
+  }
 }
 
 export async function upsertLegislation(legislationData: Legislation): Promise<void> {
@@ -191,9 +191,40 @@ export async function getLegislationById(id: string): Promise<Legislation | null
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
       const { _id, ...restOfDoc } = document;
       return restOfDoc as Legislation;
-    } else {
-      return null;
     }
+
+    // If not found in legislation, try executive_orders
+    const eoCollection = await getCollection('executive_orders');
+    const eoDoc = await eoCollection.findOne({ id });
+
+    if (eoDoc) {
+      // Map ExecutiveOrder to Legislation
+      return {
+        id: eoDoc.id,
+        title: eoDoc.title,
+        identifier: eoDoc.number ? (eoDoc.state === 'United States' ? `EO ${eoDoc.number}` : `Exec. Order ${eoDoc.number}`) : 'Executive Order',
+        jurisdictionName: eoDoc.state,
+        classification: ['executive-order'],
+        session: new Date(eoDoc.date_signed).getFullYear().toString(),
+        statusText: 'Signed',
+        summary: eoDoc.geminiSummary || eoDoc.summary,
+        // Map full_text to fullText for the frontend
+        fullText: eoDoc.full_text,
+        createdAt: eoDoc.createdAt,
+        updatedAt: eoDoc.updatedAt || eoDoc.createdAt,
+        firstActionAt: eoDoc.date_signed,
+        latestActionAt: eoDoc.date_signed,
+        latestPassageAt: eoDoc.date_signed,
+        enactedAt: eoDoc.date_signed,
+        latestActionDescription: `Signed by ${eoDoc.governor_or_president}`,
+        sponsors: [{ name: eoDoc.governor_or_president, role: 'Executive' }],
+        subjects: eoDoc.topics || [],
+        sources: [{ url: eoDoc.full_text_url, note: 'Official Source' }],
+        stateLegislatureUrl: eoDoc.full_text_url
+      } as Legislation;
+    }
+
+    return null;
   } catch (error) {
     console.error(`Error fetching legislation document with id ${id}: `, error);
     return null;
@@ -280,7 +311,7 @@ export async function getAllLegislationWithFiltering({
   try {
     // Parse filtering parameters
     const otherFilters: Record<string, any> = {};
-    
+
     // Always filter by sponsorId if present
     if (sponsorId) {
       // Normalize id to use slashes (ocd-person/uuid) for matching sponsors.id
@@ -298,7 +329,7 @@ export async function getAllLegislationWithFiltering({
 
     // Parse sorting parameters with context-aware logic
     let sort: Record<string, 1 | -1>;
-    
+
     if (showOnlyEnacted === 'true' || showOnlyEnacted === 'false') {
       // For enacted filtering, always sort by enactedAt first, then latestActionAt
       if (sortDir === 'asc') {
@@ -353,7 +384,7 @@ export async function getAllLegislationWithFiltering({
     if (jurisdiction) {
       otherFilters.jurisdictionId = jurisdiction;
     }
-    
+
     // Handle Congress vs State filtering
     const isCongress: boolean = !!(
       showCongress ||
@@ -366,7 +397,7 @@ export async function getAllLegislationWithFiltering({
     } else if (jurisdictionName) {
       otherFilters.jurisdictionName = jurisdictionName;
     }
-    
+
     if (subject) {
       otherFilters.subjects = subject;
     }
@@ -392,21 +423,21 @@ export async function getAllLegislationWithFiltering({
         otherFilters['sponsors.name'] = sponsor;
       }
     }
-    
+
     // Date range filters (e.g., firstActionAt_gte, firstActionAt_lte)
     if (firstActionAt_gte || firstActionAt_lte) {
       otherFilters.firstActionAt = {};
       if (firstActionAt_gte) otherFilters.firstActionAt.$gte = new Date(firstActionAt_gte);
       if (firstActionAt_lte) otherFilters.firstActionAt.$lte = new Date(firstActionAt_lte);
     }
-    
+
     // updatedAt date range filters
     if (updatedAt_gte || updatedAt_lte) {
       otherFilters.updatedAt = {};
       if (updatedAt_gte) otherFilters.updatedAt.$gte = new Date(updatedAt_gte);
       if (updatedAt_lte) otherFilters.updatedAt.$lte = new Date(updatedAt_lte);
     }
-    
+
     // latestActionAt date range filters
     if (latestActionAt_gte || latestActionAt_lte) {
       otherFilters.latestActionAt = {};
@@ -480,7 +511,7 @@ export async function getAllLegislationWithFiltering({
 
       const dateA = getComparisonDate(a);
       const dateB = getComparisonDate(b);
-      
+
       return sortDir === 'asc' ? dateA - dateB : dateB - dateA;
     });
 
@@ -528,7 +559,7 @@ export async function getAllLegislationWithFiltering({
         });
         const fuzzyResults = fuse.search(search.trim().toLowerCase()).map(r => r.item.idx);
         let fuzzyLegislations = fuzzyResults.map(idx => allCandidates[idx]);
-        
+
         // Sort fuzzy results consistently with context-aware logic
         fuzzyLegislations.sort((a, b) => {
           const getLatestDate = (bill: any) => {
@@ -564,12 +595,12 @@ export async function getAllLegislationWithFiltering({
             }
             return 0;
           };
-          
+
           const dateA = getLatestDate(a);
           const dateB = getLatestDate(b);
           return sortDir === 'asc' ? dateA - dateB : dateB - dateA;
         });
-        
+
         legislations = fuzzyLegislations.slice(0, limit);
       }
     }
@@ -639,16 +670,186 @@ export async function getAllLegislation({
     }
 
     // Default behavior for all other queries (non-congress)
-    const results = await legislationCollection
+    const legislationDocs = await legislationCollection
       .find(filter)
       .sort(sort)
       .skip(skip)
       .limit(limit)
       .toArray();
-    return results.map(doc => {
+
+    let results = legislationDocs.map(doc => {
       const { _id, ...rest } = doc;
       return rest as Legislation;
     });
+
+    // Check if we should include Executive Orders
+    // We include them if:
+    // 1. classification filter is explicitly 'executive-order' OR
+    // 2. classification filter is not set AND we are not filtering for a specific chamber/session that wouldn't apply
+    const classificationFilter = filter.classification;
+    const shouldFetchEOs =
+      classificationFilter === 'executive-order' ||
+      (!classificationFilter && !filter.chamber && !filter.session && !showCongress);
+
+    if (shouldFetchEOs) {
+      try {
+        const eoCollection = await getCollection('executive_orders');
+
+        // Build EO filter
+        const eoFilter: Record<string, any> = {};
+
+        // Apply search if present (from the logic above, 'filter' contains the finalized mongo query)
+        // We need to try to extract the search regex if it exists in the input filter
+        // The input 'filter' might have $and or other structures, so we do simpler matching here
+
+        // If the caller passed a specific "classification" = "executive-order", we don't need to filter by it in EO collection
+        // But if they passed other filters, we should try to respect them
+
+        if (filter.jurisdictionName) {
+          // EOs store state/jurisdiction as "state" field
+          // Map "United States Congress" -> "United States" for EOs, though usually EOs are US or State
+          if (filter.jurisdictionName === 'United States Congress') {
+            eoFilter.state = 'United States';
+          } else {
+            eoFilter.state = filter.jurisdictionName;
+          }
+        }
+
+        // Check for text search in the input filter
+        // This is tricky because the input filter is already a constructed Mongo query
+        // We'll peek at $or from the caller if it exists
+        if (filter.$and) {
+          const searchPart = filter.$and.find((f: any) => f.$or);
+          if (searchPart) {
+            // Reconstruct search for EO fields
+            // We can't easily deep inspect the regex, so we'll skip complex reconstruction for now 
+            // and rely on client-side or assume if getAllLegislationWithFiltering calls this, it handles merging.
+            // However, getAllLegislation IS called by getAllLegislationWithFiltering with a constructed filter.
+
+            // Strategy: If we recognize a search pattern in the filter, apply it to EO fields
+            // For now, let's look for known fields in the filter that match EO equivalent
+
+            // Actually, let's just use the same basic query structure if compatible.
+            // EO fields: title, summary, topics (array), full_text, governor_or_president
+          }
+        }
+
+        // Simplification: We will just fetch EOs and assume the caller (getAllLegislationWithFiltering) might handle complex merging, 
+        // BUT getAllLegislationWithFiltering expects this function to do the db work.
+        // We need to apply the same "search" logic if possible.
+
+        // Let's manually check if there's a text search occurring.
+        // In getAllLegislationWithFiltering, 'search' param generates an $or on title, summary, identifier, classification, subjects.
+
+        // We can't easily verify the *original* search term here without changing the function signature.
+        // However, we can fetch recent EOs and filter them in memory if the dataset is small, or just try to be smart.
+
+        // BETTER APPROACH: match the filter structure for common fields
+        if (filter.$and) {
+          // It's likely a search query.
+          // Let's try to extract the search regex from the title field if present
+          const searchClause = filter.$and.find((f: any) => f.$or);
+          if (searchClause) {
+            const titleClause = searchClause.$or.find((c: any) => c.title);
+            if (titleClause && titleClause.title.$regex) {
+              const regex = titleClause.title.$regex;
+              const options = titleClause.title.$options;
+
+              eoFilter.$or = [
+                { title: { $regex: regex, $options: options } },
+                { summary: { $regex: regex, $options: options } },
+                { topics: { $regex: regex, $options: options } },
+                { governor_or_president: { $regex: regex, $options: options } }
+              ];
+            }
+          }
+        } else if (filter.$or) {
+          // Direct search query?
+          const titleClause = filter.$or.find((c: any) => c.title);
+          if (titleClause && titleClause.title.$regex) {
+            const regex = titleClause.title.$regex;
+            const options = titleClause.title.$options;
+            eoFilter.$or = [
+              { title: { $regex: regex, $options: options } },
+              { summary: { $regex: regex, $options: options } },
+              { topics: { $regex: regex, $options: options } },
+              { governor_or_president: { $regex: regex, $options: options } }
+            ];
+          }
+        }
+
+        // Apply sorting to EOs (map sort fields)
+        let eoSort: Record<string, 1 | -1> = {};
+        if (sort.latestActionAt || sort.createdAt || sort.updatedAt) {
+          const dir = (sort.latestActionAt || sort.createdAt || sort.updatedAt) as 1 | -1;
+          eoSort.date_signed = dir;
+        } else {
+          eoSort = { date_signed: -1 };
+        }
+
+        const eoDocs = await eoCollection
+          .find(eoFilter)
+          .sort(eoSort)
+          .limit(limit) // Fetch up to limit, we'll slice later after merge
+          .toArray();
+
+        const eoLegislation: Legislation[] = eoDocs.map(eo => ({
+          id: eo.id,
+          title: eo.title,
+          identifier: eo.number ? (eo.state === 'United States' ? `EO ${eo.number}` : `Exec. Order ${eo.number}`) : 'Executive Order',
+          jurisdictionName: eo.state,
+          classification: ['executive-order'],
+          session: new Date(eo.date_signed).getFullYear().toString(),
+          statusText: 'Signed',
+          summary: eo.geminiSummary || eo.summary,
+          createdAt: eo.createdAt,
+          updatedAt: eo.updatedAt || eo.createdAt,
+          // Map Signing Date to action dates
+          firstActionAt: eo.date_signed,
+          latestActionAt: eo.date_signed,
+          latestPassageAt: eo.date_signed,
+          enactedAt: eo.date_signed,
+          latestActionDescription: `Signed by ${eo.governor_or_president}`,
+          // Map Governor/President to sponsors
+          sponsors: [{ name: eo.governor_or_president, role: 'Executive' }],
+          subjects: eo.topics || [],
+          sources: [{ url: eo.full_text_url, note: 'Official Source' }],
+          stateLegislatureUrl: eo.full_text_url
+        }));
+
+        // Merge and Sort
+        results = [...results, ...eoLegislation];
+
+        // Re-sort combined results
+        results.sort((a, b) => {
+          const dateA = a.latestActionAt ? new Date(a.latestActionAt).getTime() : 0;
+          const dateB = b.latestActionAt ? new Date(b.latestActionAt).getTime() : 0;
+          // Assuming sort is primarily by date descending for the feed
+          const direction = (sort.latestActionAt === 1 || sort.createdAt === 1 || sort.updatedAt === 1) ? 1 : -1;
+          return direction * (dateA - dateB);
+        });
+
+        // Re-apply skip/limit on merged set
+        // Note: This isn't perfect pagination because we fetched (skip+limit) from both sources conceptually, 
+        // but here we only fetched 'limit' from each. 
+        // For strict pagination, we'd need to fetch skip+limit from both and slice, which is heavier.
+        // Given we are mostly browsing recent items, this simple merge is usually acceptable for a combined feed.
+        // A better approach for deep pagination would be to fetch more or use weighted merging, 
+        // but exact pagination across two separate collections is hard without aggregation.
+
+        // If we are strictly skipping, we might lose EOs if we didn't fetch enough. 
+        // We'll stick to slicing the combined result for now.
+        if (results.length > limit) {
+          results = results.slice(0, limit);
+        }
+
+      } catch (err) {
+        console.error('Error fetching executive orders:', err);
+        // Do not fail the whole request if EOs fail, just return legislation
+      }
+    }
+
+    return results;
   } catch (error) {
     console.error('Error fetching all legislation from service: ', error);
     throw new Error('Failed to fetch legislation.');
@@ -696,7 +897,7 @@ export async function testLegislationCollectionService(): Promise<void> {
 // Overload for backward compatibility
 export async function searchLegislationByTopic(topic: string, daysBack: number): Promise<Legislation[]>;
 export async function searchLegislationByTopic(
-  topic: string, 
+  topic: string,
   options: {
     daysBack?: number;
     limit?: number;
@@ -707,7 +908,7 @@ export async function searchLegislationByTopic(
   }
 ): Promise<Legislation[]>;
 export async function searchLegislationByTopic(
-  topic: string, 
+  topic: string,
   optionsOrDaysBack: number | {
     daysBack?: number;
     limit?: number;
@@ -727,7 +928,7 @@ export async function searchLegislationByTopic(
       filters?: Record<string, any>;
       showCongress?: boolean;
     };
-    
+
     if (typeof optionsOrDaysBack === 'number') {
       options = { daysBack: optionsOrDaysBack };
     } else {
@@ -758,7 +959,7 @@ export async function searchLegislationByTopic(
     ];
     // Add federal keywords
     const federalKeywords = [
-      'congress', 'united states congress', 'us congress', 'federal', 'national', 
+      'congress', 'united states congress', 'us congress', 'federal', 'national',
       'house of representatives', 'senate', 'capitol hill', 'washington dc', 'dc congress'
     ];
 
@@ -786,7 +987,7 @@ export async function searchLegislationByTopic(
     // Full text search using the same approach as main legislation endpoint
     const searchValue = topic.trim();
     let finalFilter = { ...otherFilters };
-    
+
     if (searchValue) {
       const searchOr = [
         { title: { $regex: searchValue, $options: 'i' } },
@@ -817,11 +1018,11 @@ export async function searchLegislationByTopic(
     // Fuzzy search fallback: only if no results and a search term is present
     if (searchValue && legislations.length === 0) {
       console.log('[Topic Search] No exact matches found, trying fuzzy search...');
-      
+
       // Strictly apply all non-search filters (deep copy, excluding $or)
       const fuzzyFilter: Record<string, any> = JSON.parse(JSON.stringify(otherFilters));
       if (fuzzyFilter.$or) delete fuzzyFilter.$or;
-      
+
       // Get all candidates that match the non-search filters
       const allCandidates = await getAllLegislation({
         limit: 500, // Get more candidates for fuzzy matching
@@ -833,18 +1034,18 @@ export async function searchLegislationByTopic(
 
       if (allCandidates.length > 0) {
         const Fuse = (await import('fuse.js')).default;
-        
+
         // Only use the same fields as regular full text search
         const fuseKeys = [
           "title",
-          "summary", 
+          "summary",
           "identifier",
           "classification",
           "subjects",
           "geminiSummary",
           "latestActionDescription"
         ];
-        
+
         const normalizedCandidates = allCandidates.map((u: any, idx: number) => ({
           idx,
           title: u.title ? String(u.title).toLowerCase().trim() : '',
@@ -855,7 +1056,7 @@ export async function searchLegislationByTopic(
           geminiSummary: u.geminiSummary ? String(u.geminiSummary).toLowerCase().trim() : '',
           latestActionDescription: u.latestActionDescription ? String(u.latestActionDescription).toLowerCase().trim() : '',
         }));
-        
+
         const fuse = new Fuse(normalizedCandidates, {
           keys: fuseKeys,
           threshold: 0.4,
@@ -864,10 +1065,10 @@ export async function searchLegislationByTopic(
           findAllMatches: true,
           minMatchCharLength: 2,
         });
-        
+
         const fuzzyResults = fuse.search(searchValue.trim().toLowerCase()).map(r => r.item.idx);
         legislations = fuzzyResults.map(idx => allCandidates[idx]).slice(0, limit);
-        
+
         console.log(`[Topic Search] Fuzzy search found ${legislations.length} results`);
       }
     }

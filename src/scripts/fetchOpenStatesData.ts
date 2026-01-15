@@ -1,9 +1,9 @@
-import {getLegislationById, upsertLegislationSelective} from '@/services/legislationService';
-import {config} from 'dotenv';
+import { getLegislationById, upsertLegislationSelective } from '@/services/legislationService';
+import { config } from 'dotenv';
 import fetch from 'node-fetch';
-import {generateGeminiSummary, summarizeLegislationOptimized} from '@/services/aiSummaryUtil';
-import {classifyLegislationForFetch} from '@/services/classifyLegislationService';
-import {enactedPatterns} from "@/types/legislation";
+import { generateGeminiSummary, summarizeLegislationOptimized } from '@/services/aiSummaryUtil';
+import { classifyLegislationForFetch } from '@/services/classifyLegislationService';
+import { enactedPatterns } from "@/types/legislation";
 
 config({ path: '../../.env' });
 
@@ -358,15 +358,15 @@ export function transformOpenStatesBillToMongoDB(osBill: any): any {
   // Calculate lastActionAt from the most recent action in history
   const lastActionAt = history.length > 0
     ? history.reduce((latest: any, action: any) => {
-        return action.date > latest ? action.date : latest;
-      }, history[0].date)
+      return action.date > latest ? action.date : latest;
+    }, history[0].date)
     : null;
 
   // Calculate firstActionAt from the earliest action in history
   const firstActionAt = history.length > 0
     ? history.reduce((earliest: any, action: any) => {
-        return action.date < earliest ? action.date : earliest;
-      }, history[0].date)
+      return action.date < earliest ? action.date : earliest;
+    }, history[0].date)
     : null;
 
   // Process bill versions
@@ -469,9 +469,9 @@ async function fetchSessionsForJurisdiction(ocdId: string): Promise<OpenStatesSe
     const data = await response.json();
     // @ts-ignore
     return (data.legislative_sessions || []).sort((a: OpenStatesSession, b: OpenStatesSession) => {
-        const dateA = a.end_date || a.start_date || '0';
-        const dateB = b.end_date || b.start_date || '0';
-        return new Date(dateB).getTime() - new Date(dateA).getTime();
+      const dateA = a.end_date || a.start_date || '0';
+      const dateB = b.end_date || b.start_date || '0';
+      return new Date(dateB).getTime() - new Date(dateA).getTime();
     });
   } catch (error) {
     console.error(`Network error fetching sessions for ${ocdId}:`, error);
@@ -493,19 +493,24 @@ async function fetchAndStoreUpdatedBills(
   jurisdictionAbbr: string,
   sessionIdentifier: string,
   updatedSince: string,
-  startPage: number = 1
+  startPage: number = 1,
+  aiOnly: boolean = false
 ) {
   let page = startPage;
   const perPage = 20;
   let hasMore = true;
   let billsProcessed = 0;
 
-  console.log(`Fetching bills updated since ${updatedSince} for ${jurisdictionAbbr} - Session: ${sessionIdentifier} - Starting from page ${startPage}`);
+  const aiKeywords = '"artificial intelligence"';
+  const searchQuery = aiOnly ? `&q=${encodeURIComponent(aiKeywords)}` : '';
+
+  console.log(`Fetching bills updated since ${updatedSince} for ${jurisdictionAbbr} - Session: ${sessionIdentifier} - Starting from page ${startPage}${aiOnly ? ' (AI Filter Active)' : ''}`);
 
   // If resuming from a high page number, first verify the page exists
   if (startPage > 1) {
     console.log(`Verifying that page ${startPage} still exists for ${jurisdictionAbbr}...`);
-    const testUrl = `${OPENSTATES_API_BASE_URL}/bills?jurisdiction=${ocdId}&session=${sessionIdentifier}&page=1&per_page=20&apikey=${OPENSTATES_API_KEY}&sort=updated_desc&updated_since=${updatedSince}`;
+    const testUrl = `${OPENSTATES_API_BASE_URL}/bills?jurisdiction=${ocdId}&session=${sessionIdentifier}&page=1&per_page=20&apikey=${OPENSTATES_API_KEY}&sort=updated_desc&updated_since=${updatedSince}${searchQuery}`;
+
 
     try {
       const testResponse = await fetch(testUrl);
@@ -541,7 +546,7 @@ async function fetchAndStoreUpdatedBills(
       'sources',
     ];
     const includeParams = includes.map(inc => `include=${inc}`).join('&');
-    const url = `${OPENSTATES_API_BASE_URL}/bills?jurisdiction=${ocdId}&session=${sessionIdentifier}&page=${page}&per_page=${perPage}&apikey=${OPENSTATES_API_KEY}&${includeParams}&sort=updated_desc&updated_since=${updatedSince}`;
+    const url = `${OPENSTATES_API_BASE_URL}/bills?jurisdiction=${ocdId}&session=${sessionIdentifier}&page=${page}&per_page=${perPage}&apikey=${OPENSTATES_API_KEY}&${includeParams}&sort=updated_desc&updated_since=${updatedSince}${searchQuery}`;
 
     console.log(`Fetching page ${page} from: ${url.replace(OPENSTATES_API_KEY as string, 'REDACTED_KEY')}`);
     try {
@@ -588,6 +593,29 @@ async function fetchAndStoreUpdatedBills(
         for (const osBill of data.results) {
           try {
             const legislationToStore = transformOpenStatesBillToMongoDB(osBill);
+
+            // AI Filtering Logic (Secondary Check)
+            if (aiOnly) {
+              const aiRegex = /artificial intelligence/i;
+              let hasAiContent = false;
+
+              if (legislationToStore.title && aiRegex.test(legislationToStore.title)) {
+                hasAiContent = true;
+              }
+
+              if (!hasAiContent && legislationToStore.abstract) {
+                if (aiRegex.test(legislationToStore.abstract)) {
+                  hasAiContent = true;
+                }
+              }
+
+              if (!hasAiContent) {
+                // OpenStates API "q" param is fuzzy, so this strict check is valuable.
+                console.log(`  Skipping ${legislationToStore.jurisdiction} ${legislationToStore.billNumber}: Query matched but no "artificial intelligence" phrase in title/abstract.`);
+                continue;
+              }
+            }
+
             // check if the bill already exists in the database
             if (!legislationToStore.id) {
               console.warn(`Skipping bill with missing ID: ${osBill.id}`);
@@ -614,7 +642,7 @@ async function fetchAndStoreUpdatedBills(
               const { summary, longSummary, sourceType } = await summarizeLegislationOptimized(legislationToStore);
               legislationToStore.geminiSummary = summary;
               legislationToStore.geminiSummarySource = sourceType;
-              
+
               console.log(`  Generated brief summary for ${legislationToStore.identifier} (source: ${sourceType})`);
               console.log(`  Brief summary: ${summary.length} chars`);
             }
@@ -684,7 +712,7 @@ async function fetchAndStoreUpdatedBills(
   }
 }
 
-async function runUpdateCycle(enableOpenStates: boolean = true, enableCongress: boolean = true) {
+async function runUpdateCycle(enableOpenStates: boolean = true, enableCongress: boolean = true, targetState?: string, aiOnly: boolean = false, days: number = 1) {
   if (!enableOpenStates && !enableCongress) {
     console.error("Error: At least one API source must be enabled. Use --openstates and/or --congress flags.");
     return;
@@ -700,8 +728,8 @@ async function runUpdateCycle(enableOpenStates: boolean = true, enableCongress: 
     return;
   }
 
-  const updatedSinceString = getUpdatedSinceString(UPDATE_INTERVAL_HOURS);
-  console.log(`--- Starting fetch for legislation updated since ${updatedSinceString} ---`);
+  const updatedSinceString = getUpdatedSinceString(days * 24);
+  console.log(`--- Starting fetch for legislation updated since ${updatedSinceString} (${days} days ago) ---`);
   console.log(`--- OpenStates API: ${enableOpenStates ? 'ENABLED' : 'DISABLED'} ---`);
   console.log(`--- Congress API: ${enableCongress ? 'ENABLED' : 'DISABLED'} ---`);
 
@@ -727,12 +755,18 @@ async function runUpdateCycle(enableOpenStates: boolean = true, enableCongress: 
       console.log(`[Congress Cutoff] No cutoff file found at: ${cutoffPath}`);
       console.log(`[Congress Cutoff] Using default (24h ago): ${congressUpdatedSince}`);
     }
+
+    // Override with requested days if provided and older than current cutoff
+    if (new Date(updatedSinceString) < new Date(congressUpdatedSince)) {
+      console.log(`[Congress Cutoff] Overriding cutoff with --days argument value: ${updatedSinceString}`);
+      congressUpdatedSince = updatedSinceString;
+    }
   }
 
   // Fetch from Congress.gov API for US federal legislation if enabled
   if (enableCongress) {
-    console.log(`\n--- Processing US Congress via Congress.gov API ---`);
-    await fetchCongressBills(congressUpdatedSince);
+    console.log(`\n--- Processing US Congress via Congress.gov API${aiOnly ? ' (AI Filter Active)' : ''} ---`);
+    await fetchCongressBills(congressUpdatedSince, aiOnly);
     await delay(5000);
   } else {
     console.log(`\n--- Skipping US Congress (Congress API disabled) ---`);
@@ -740,7 +774,15 @@ async function runUpdateCycle(enableOpenStates: boolean = true, enableCongress: 
 
   // Process state legislatures via OpenStates API if enabled
   if (enableOpenStates) {
-    const stateJurisdictions = STATE_OCD_IDS.filter(state => state.abbr !== 'us');
+    let stateJurisdictions = STATE_OCD_IDS.filter(state => state.abbr !== 'us');
+
+    if (targetState) {
+      stateJurisdictions = stateJurisdictions.filter(s => s.abbr.toLowerCase() === targetState.toLowerCase());
+      if (stateJurisdictions.length === 0) {
+        console.error(`Error: State ${targetState} not found in configuration.`);
+        return;
+      }
+    }
 
     for (const state of stateJurisdictions) {
       console.log(`\n--- Processing State: ${state.abbr} (${state.ocdId}) ---`);
@@ -765,7 +807,7 @@ async function runUpdateCycle(enableOpenStates: boolean = true, enableCongress: 
             console.log(`Most recent session ${mostRecentSession.name} for ${state.abbr} appears to be in the future or invalid; skipping.`);
           }
         }
-        console.log(`Found ${currentSessions.length} potentially current session(s) for ${state.abbr}: ${currentSessions.map(s=>`${s.name} (${s.identifier})`).join(', ')}`);
+        console.log(`Found ${currentSessions.length} potentially current session(s) for ${state.abbr}: ${currentSessions.map(s => `${s.name} (${s.identifier})`).join(', ')}`);
         for (const session of currentSessions) {
           // Check for existing checkpoint
           const checkpoint = loadCheckpoint();
@@ -784,7 +826,7 @@ async function runUpdateCycle(enableOpenStates: boolean = true, enableCongress: 
             sessionUpdatedSince = updatedSinceString;
           }
 
-          await fetchAndStoreUpdatedBills(state.ocdId, state.abbr, session.identifier, sessionUpdatedSince, startPage);
+          await fetchAndStoreUpdatedBills(state.ocdId, state.abbr, session.identifier, sessionUpdatedSince, startPage, aiOnly);
           await delay(3000);
         }
       } else {
@@ -807,13 +849,17 @@ async function runUpdateCycle(enableOpenStates: boolean = true, enableCongress: 
 }
 
 // Parse command line arguments
-function parseArguments(): { enableOpenStates: boolean; enableCongress: boolean; runOnce: boolean } {
+function parseArguments(): { enableOpenStates: boolean; enableCongress: boolean; runOnce: boolean; targetState?: string; aiOnly: boolean; days: number } {
   const args = process.argv.slice(2);
   let enableOpenStates = true;
   let enableCongress = true;
   let runOnce = false;
+  let targetState: string | undefined;
+  let aiOnly = false;
+  let days: number = 1;
 
-  for (const arg of args) {
+  for (let i = 0; i < args.length; i++) {
+    const arg = args[i];
     switch (arg) {
       case '--openstates-only':
         enableOpenStates = true;
@@ -835,8 +881,19 @@ function parseArguments(): { enableOpenStates: boolean; enableCongress: boolean;
       case '--congress':
         enableCongress = true;
         break;
+      case '--ai-only':
+        aiOnly = true;
+        break;
+      case '--days':
+        days = parseInt(args[i + 1], 10);
+        i++;
+        break;
       case '--once':
         runOnce = true;
+        break;
+      case '--state':
+        targetState = args[i + 1];
+        i++; // Skip next arg
         break;
       case '--help':
       case '-h':
@@ -851,6 +908,9 @@ Options:
   --openstates         Enable OpenStates API (default: enabled)
   --congress           Enable Congress.gov API (default: enabled)
   --once               Run once instead of continuous loop
+  --state <abbr>       Fetch only specific state (e.g. DE)
+  --ai-only            Fetch only AI-related legislation
+  --days <number>      Lookback window in days (default: 1)
   --help, -h           Show this help message
 
 Examples:
@@ -870,13 +930,13 @@ Examples:
     }
   }
 
-  return { enableOpenStates, enableCongress, runOnce };
+  return { enableOpenStates, enableCongress, runOnce, targetState, aiOnly, days };
 }
 
 
 async function main() {
-  const { enableOpenStates, enableCongress } = parseArguments();
-  await runUpdateCycle(enableOpenStates, enableCongress);
+  const { enableOpenStates, enableCongress, runOnce, targetState, aiOnly, days } = parseArguments();
+  await runUpdateCycle(enableOpenStates, enableCongress, targetState, aiOnly, days);
   console.log("Execution completed. Exiting.");
   process.exit(0);
 }
@@ -971,11 +1031,11 @@ export function transformCongressBillToMongoDB(congressBill: any): any {
 
   // Process summary
   const summary = congressBill.summaries?.summaries?.[0]?.text ||
-                 congressBill.title || null;
+    congressBill.title || null;
 
   const chamber = congressBill.originChamber === 'House' ? 'lower' :
-                 congressBill.originChamber === 'Senate' ? 'upper' :
-                 congressBill.originChamber?.toLowerCase();
+    congressBill.originChamber === 'Senate' ? 'upper' :
+      congressBill.originChamber?.toLowerCase();
 
   // Dynamically detect if the bill is enacted based on history
   const enactedAt = detectEnactedDate(history);
@@ -1018,7 +1078,7 @@ export function transformCongressBillToMongoDB(congressBill: any): any {
 /**
  * Fetch bills from Congress.gov API
  */
-async function fetchCongressBills(updatedSince: string) {
+async function fetchCongressBills(updatedSince: string, aiOnly: boolean) {
   if (!CONGRESS_API_KEY) {
     console.error("Error: CONGRESS_API_KEY environment variable is not set. Skipping Congress data.");
     return;
@@ -1094,6 +1154,38 @@ async function fetchCongressBills(updatedSince: string) {
               congressBill.summaries = await summariesResponse.json();
             }
 
+            // AI Filtering Logic
+            if (aiOnly) {
+              const aiRegex = /artificial intelligence/i;
+              let hasAiContent = false;
+
+              // 1. Check Title
+              if (congressBill.title && aiRegex.test(congressBill.title)) {
+                hasAiContent = true;
+                // console.log(`  [AI Match] Found in title: ${congressBill.title}`);
+              }
+
+              // 2. Check Summaries
+              if (!hasAiContent && congressBill.summaries?.summaries) {
+                for (const sum of congressBill.summaries.summaries) {
+                  if (sum.text && aiRegex.test(sum.text)) {
+                    hasAiContent = true;
+                    // console.log(`  [AI Match] Found in summary`);
+                    break;
+                  }
+                }
+              }
+
+              // 3. Check Text Versions (if we had full text, but here we likely only have metadata URLs, so skip for now or fetch?)
+              // The 'textVersions' usually contains links to XML/HTML. We aren't downloading full text here yet.
+              // So we rely on Title and Summaries for now to avoid massive bandwidth usage.
+
+              if (!hasAiContent) {
+                console.log(`  Skipping ${congressBill.type} ${congressBill.number}: No "artificial intelligence" found in title or summaries.`);
+                continue;
+              }
+            }
+
             const legislationToStore = transformCongressBillToMongoDB(congressBill);
             // Check if the bill already exists in the database
             if (!legislationToStore.id) {
@@ -1121,7 +1213,7 @@ async function fetchCongressBills(updatedSince: string) {
               const { summary, longSummary, sourceType } = await summarizeLegislationOptimized(legislationToStore);
               legislationToStore.geminiSummary = summary;
               legislationToStore.geminiSummarySource = sourceType;
-              
+
               console.log(`  Generated brief summary for ${legislationToStore.identifier} (source: ${sourceType})`);
               console.log(`  Brief summary: ${summary.length} chars`);
             }

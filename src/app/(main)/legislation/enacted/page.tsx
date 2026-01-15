@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Badge } from "@/components/ui/badge";
 
 export const metadata = {
-  title: 'Enacted Legislation | StatePulse',
+  title: 'Enacted Legislation | AI Legislation Tracker',
   description: 'View all bills that have been enacted into law across states and federal government. Track successful legislation from introduction to enactment.',
   keywords: ['enacted legislation', 'bills signed into law', 'public law', 'governor signed', 'chapter laws', 'acts'],
 };

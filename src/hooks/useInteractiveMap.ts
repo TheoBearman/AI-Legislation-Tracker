@@ -119,7 +119,7 @@ export const useInteractiveMap = () => {
     const [memoryPressure, setMemoryPressure] = useState<boolean>(false);
     const cleanupTimeoutRef = useRef<NodeJS.Timeout | null>(null);
     const [isFullScreen, setIsFullScreen] = useState<boolean>(false);
-    
+
     // Voting power states
     const [votingPowerData, setVotingPowerData] = useState<Record<string, any>>({});
     const [votingPowerLoading, setVotingPowerLoading] = useState<boolean>(false);
@@ -132,16 +132,16 @@ export const useInteractiveMap = () => {
         try {
             console.log('[useInteractiveMap] Fetching map data...');
             const response = await fetch('/api/dashboard/map-data');
-            
+
             if (!response.ok) {
                 const errorText = await response.text();
                 console.error('[useInteractiveMap] Failed to fetch map data:', response.status, errorText);
                 throw new Error(`Failed to fetch map data: ${response.status}`);
             }
-            
+
             const result = await response.json();
             console.log('[useInteractiveMap] Map data received:', result.success ? 'success' : 'failed');
-            
+
             if (result.success) {
                 setStateStats(result.data);
             } else {
@@ -290,7 +290,10 @@ export const useInteractiveMap = () => {
             if (result.representatives) {
                 const mapping: Record<string, string> = {};
                 const expectedChamber = chamber === 'us_house' ? 'House of Representatives' : chamber === 'state_upper' ? 'State Senate' : chamber === 'state_lower' ? 'State House' : '';
-                const filteredReps = result.representatives.filter((rep: any) => rep.chamber === expectedChamber);
+                const filteredReps = result.representatives.filter((rep: any) =>
+                    rep.chamber === expectedChamber ||
+                    (chamber === 'us_house' && (rep.chamber === 'US House' || rep.chamber === 'House'))
+                );
                 filteredReps.forEach((rep: any) => {
                     const normalizedParty = normalizePartyName(rep.party || 'Unknown');
                     const districtIds = new Set<string>();

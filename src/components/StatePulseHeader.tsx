@@ -1,7 +1,5 @@
 import { SidebarTrigger } from "@/components/ui/sidebar";
-import { Gavel } from "lucide-react";
-import { SignedIn, SignedOut, UserButton, SignInButton, SignUpButton } from "@clerk/nextjs";
-import { Button } from "@/components/ui/button";
+import { Bot } from "lucide-react";
 
 export function StatePulseHeader() {
   return (
@@ -9,25 +7,13 @@ export function StatePulseHeader() {
       <div className="flex items-center gap-2 sm:gap-4 min-w-0">
         <SidebarTrigger />
         <div className="flex items-center gap-2 min-w-0">
-          <Gavel className="h-6 w-6 text-primary" />
-          <h1 className="text-xl font-semibold font-headline truncate hidden sm:block">StatePulse</h1>
+          <Bot className="h-6 w-6 text-primary" />
+          <h1 className="text-xl font-semibold font-headline truncate hidden sm:block">AI Legislation Tracker</h1>
         </div>
       </div>
 
       <div className="flex items-center gap-2 sm:gap-4 flex-wrap min-w-0">
-        <SignedIn>
-          <UserButton afterSignOutUrl="/" />
-        </SignedIn>
-        <SignedOut>
-          <div className="flex flex-row gap-2">
-            <SignInButton mode="modal">
-              <Button>Sign In</Button>
-            </SignInButton>
-            <SignUpButton mode="modal">
-              <Button variant="outline">Sign Up</Button>
-            </SignUpButton>
-          </div>
-        </SignedOut>
+        {/* Auth buttons removed for AI specific version */}
       </div>
     </header>
   );

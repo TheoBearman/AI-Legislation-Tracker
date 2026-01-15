@@ -18,7 +18,7 @@ export async function GET(request: NextRequest) {
 
     const response = await fetch(searchUrl, {
       headers: {
-        'User-Agent': 'StatePulse/1.0 (contact@statepulse.app)', // Required by Nominatim
+        'User-Agent': 'AI Legislation Tracker/1.0 (contact@statepulse.app)', // Required by Nominatim
       }
     });
 

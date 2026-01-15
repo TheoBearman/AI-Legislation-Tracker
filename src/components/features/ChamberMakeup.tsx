@@ -42,7 +42,7 @@ interface PartyMakeupProps {
 const PARTY_COLORS: Record<string, string> = {
   'Democratic': '#2563eb', // Blue
   'Republican': '#dc2626', // Red
-  'Other': 'hsl(var(--primary))', // StatePulse green
+  'Other': 'hsl(var(--primary))', // Primary green
   'Independent': 'hsl(var(--primary))',
   'Nonpartisan': 'hsl(var(--primary))',
   'Unknown': '#6b7280' // Gray
@@ -143,7 +143,7 @@ export function ChamberMakeup({ state }: PartyMakeupProps) {
         {parties.map((party, index) => {
           const width = (party.count / totalSeats) * 100;
           const color = PARTY_COLORS[party.party] || PARTY_COLORS['Unknown'];
-          
+
           return (
             <div
               key={`${party.party}-${index}`}
@@ -176,9 +176,9 @@ export function ChamberMakeup({ state }: PartyMakeupProps) {
           <div key={`${chamber.chamber}-${chamberIndex}`} className="space-y-3">
             <div className="flex items-center justify-between">
               <h4 className="font-semibold text-lg">
-                {chamber.chamber === 'House' ? 'Lower Chamber (House)' : 
-                 chamber.chamber === 'Senate' ? 'Upper Chamber (Senate)' : 
-                 chamber.chamber}
+                {chamber.chamber === 'House' ? 'Lower Chamber (House)' :
+                  chamber.chamber === 'Senate' ? 'Upper Chamber (Senate)' :
+                    chamber.chamber}
               </h4>
               <Badge variant="outline" className="text-sm">
                 {chamber.totalSeats} seats
@@ -189,13 +189,13 @@ export function ChamberMakeup({ state }: PartyMakeupProps) {
             {/* Party breakdown details */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
               {chamber.parties.map((party, partyIndex) => (
-                <div 
+                <div
                   key={`${party.party}-${partyIndex}`}
                   className="flex items-center justify-between p-3 rounded-lg border"
                   style={{ borderLeftColor: PARTY_COLORS[party.party] || PARTY_COLORS['Unknown'], borderLeftWidth: '4px' }}
                 >
                   <div className="flex items-center gap-2">
-                    <div 
+                    <div
                       className="w-3 h-3 rounded-full"
                       style={{ backgroundColor: PARTY_COLORS[party.party] || PARTY_COLORS['Unknown'] }}
                     />

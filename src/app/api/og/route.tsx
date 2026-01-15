@@ -10,7 +10,7 @@ export async function GET(request: NextRequest) {
     const id = searchParams.get('id');
 
     // Default values
-    let title = 'StatePulse';
+    let title = 'AI Legislation Tracker';
     let subtitle = 'Stay Informed on U.S. State-Level Developments';
     let description = 'Track legislation, follow representatives, and stay engaged with state and federal politics.';
 
@@ -92,7 +92,7 @@ export async function GET(request: NextRequest) {
                 color: '#1f2937',
               }}
             >
-              StatePulse
+              AI Legislation Tracker
             </div>
           </div>
 
@@ -117,7 +117,7 @@ export async function GET(request: NextRequest) {
             >
               {title}
             </h1>
-            
+
             <h2
               style={{
                 fontSize: '24px',
@@ -128,7 +128,7 @@ export async function GET(request: NextRequest) {
             >
               {subtitle}
             </h2>
-            
+
             <p
               style={{
                 fontSize: '18px',

@@ -1,0 +1,264 @@
+
+import { upsertLegislation, getLegislationById } from '@/services/legislationService';
+import { getCollection } from '@/lib/mongodb';
+import { config } from 'dotenv';
+import fetch from 'node-fetch';
+import path from 'path';
+
+// Load env vars
+config({ path: path.resolve(process.cwd(), '.env.local') });
+config({ path: path.resolve(process.cwd(), '.env') });
+
+const OPENSTATES_API_KEY = process.env.OPENSTATES_API_KEY;
+const OPENSTATES_API_BASE_URL = 'https://v3.openstates.org';
+const UPDATED_SINCE = '2026-01-01'; // Date of bulk dump approximately
+
+const AI_KEYWORDS = [
+    'artificial intelligence',
+    'generative ai',
+    'automated decision',
+    'machine learning',
+    'algorithm',
+    'facial recognition',
+    'deepfake',
+    'predictive policing'
+];
+
+function delay(ms: number) {
+    return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+// Utility to convert OpenStates IDs to display format
+function displayOpenStatesId(id: string): string {
+    if (id.startsWith('ocd-bill/')) {
+        const rest = id.replace('ocd-bill/', '');
+        const idx = rest.indexOf('-');
+        if (idx !== -1) {
+            return 'ocd-bill_' + rest.slice(idx + 1);
+        }
+        return 'ocd-bill_' + rest;
+    }
+    return id;
+}
+
+function toMongoDate(dateInput: any): Date | null {
+    if (!dateInput) return null;
+    const d = new Date(dateInput);
+    return isNaN(d.getTime()) ? null : d;
+}
+
+function transformOpenStatesBillToMongoDB(osBill: any): any {
+    const sponsors = (osBill.sponsorships || []).map((sp: any) => ({
+        name: sp.name,
+        id: sp.person?.id || sp.organization?.id || null,
+        entityType: sp.person ? 'person' : (sp.organization ? 'organization' : null),
+        primary: sp.primary || false,
+        classification: sp.classification || null,
+    }));
+
+    const history = (osBill.actions || []).map((act: any) => ({
+        date: toMongoDate(act.date),
+        action: act.description,
+        actor: act.organization?.name || null,
+        classification: act.classification || [],
+        order: act.order,
+    })).filter((h: any) => h.date !== null);
+
+    const versions = (osBill.versions || []).map((ver: any) => ({
+        note: ver.note,
+        date: toMongoDate(ver.date),
+        links: ver.links || [],
+    })).filter((v: any) => v.date !== null);
+
+    const abstracts = (osBill.abstracts || []).map((a: any) => ({
+        abstract: a.abstract,
+        note: a.note || null,
+    }));
+
+    const summary = abstracts.length > 0 ? abstracts[0].abstract : null;
+
+    return {
+        id: displayOpenStatesId(osBill.id),
+        identifier: osBill.identifier,
+        title: osBill.title,
+        session: osBill.session,
+        jurisdictionId: osBill.jurisdiction?.id,
+        jurisdictionName: osBill.jurisdiction?.name,
+        classification: osBill.classification || [],
+        subjects: osBill.subject || [],
+        statusText: osBill.latest_action_description || null,
+        sponsors,
+        history,
+        versions,
+        abstracts,
+        openstatesUrl: osBill.openstates_url,
+        firstActionAt: toMongoDate(osBill.first_action_date),
+        latestActionAt: toMongoDate(osBill.latest_action_date),
+        latestActionDescription: osBill.latest_action_description,
+        updatedAt: toMongoDate(osBill.updated_at),
+        createdAt: toMongoDate(osBill.created_at),
+        summary
+    };
+}
+
+const STATE_OCD_IDS: { ocdId: string; abbr: string }[] = [
+    { ocdId: 'ocd-jurisdiction/country:us/state:al/government', abbr: 'AL' },
+    { ocdId: 'ocd-jurisdiction/country:us/state:ak/government', abbr: 'AK' },
+    { ocdId: 'ocd-jurisdiction/country:us/state:az/government', abbr: 'AZ' },
+    { ocdId: 'ocd-jurisdiction/country:us/state:ar/government', abbr: 'AR' },
+    { ocdId: 'ocd-jurisdiction/country:us/state:ca/government', abbr: 'CA' },
+    { ocdId: 'ocd-jurisdiction/country:us/state:co/government', abbr: 'CO' },
+    { ocdId: 'ocd-jurisdiction/country:us/state:ct/government', abbr: 'CT' },
+    { ocdId: 'ocd-jurisdiction/country:us/state:de/government', abbr: 'DE' },
+    { ocdId: 'ocd-jurisdiction/country:us/state:fl/government', abbr: 'FL' },
+    { ocdId: 'ocd-jurisdiction/country:us/state:ga/government', abbr: 'GA' },
+    { ocdId: 'ocd-jurisdiction/country:us/state:hi/government', abbr: 'HI' },
+    { ocdId: 'ocd-jurisdiction/country:us/state:id/government', abbr: 'ID' },
+    { ocdId: 'ocd-jurisdiction/country:us/state:il/government', abbr: 'IL' },
+    { ocdId: 'ocd-jurisdiction/country:us/state:in/government', abbr: 'IN' },
+    { ocdId: 'ocd-jurisdiction/country:us/state:ia/government', abbr: 'IA' },
+    { ocdId: 'ocd-jurisdiction/country:us/state:ks/government', abbr: 'KS' },
+    { ocdId: 'ocd-jurisdiction/country:us/state:ky/government', abbr: 'KY' },
+    { ocdId: 'ocd-jurisdiction/country:us/state:la/government', abbr: 'LA' },
+    { ocdId: 'ocd-jurisdiction/country:us/state:me/government', abbr: 'ME' },
+    { ocdId: 'ocd-jurisdiction/country:us/state:md/government', abbr: 'MD' },
+    { ocdId: 'ocd-jurisdiction/country:us/state:ma/government', abbr: 'MA' },
+    { ocdId: 'ocd-jurisdiction/country:us/state:mi/government', abbr: 'MI' },
+    { ocdId: 'ocd-jurisdiction/country:us/state:mn/government', abbr: 'MN' },
+    { ocdId: 'ocd-jurisdiction/country:us/state:ms/government', abbr: 'MS' },
+    { ocdId: 'ocd-jurisdiction/country:us/state:mo/government', abbr: 'MO' },
+    { ocdId: 'ocd-jurisdiction/country:us/state:mt/government', abbr: 'MT' },
+    { ocdId: 'ocd-jurisdiction/country:us/state:ne/government', abbr: 'NE' },
+    { ocdId: 'ocd-jurisdiction/country:us/state:nv/government', abbr: 'NV' },
+    { ocdId: 'ocd-jurisdiction/country:us/state:nh/government', abbr: 'NH' },
+    { ocdId: 'ocd-jurisdiction/country:us/state:nj/government', abbr: 'NJ' },
+    { ocdId: 'ocd-jurisdiction/country:us/state:nm/government', abbr: 'NM' },
+    { ocdId: 'ocd-jurisdiction/country:us/state:nc/government', abbr: 'NC' },
+    { ocdId: 'ocd-jurisdiction/country:us/state:nd/government', abbr: 'ND' },
+    { ocdId: 'ocd-jurisdiction/country:us/state:oh/government', abbr: 'OH' },
+    { ocdId: 'ocd-jurisdiction/country:us/state:ok/government', abbr: 'OK' },
+    { ocdId: 'ocd-jurisdiction/country:us/state:or/government', abbr: 'OR' },
+    { ocdId: 'ocd-jurisdiction/country:us/state:pa/government', abbr: 'PA' },
+    { ocdId: 'ocd-jurisdiction/country:us/state:ri/government', abbr: 'RI' },
+    { ocdId: 'ocd-jurisdiction/country:us/state:sc/government', abbr: 'SC' },
+    { ocdId: 'ocd-jurisdiction/country:us/state:sd/government', abbr: 'SD' },
+    { ocdId: 'ocd-jurisdiction/country:us/state:tn/government', abbr: 'TN' },
+    { ocdId: 'ocd-jurisdiction/country:us/state:tx/government', abbr: 'TX' },
+    { ocdId: 'ocd-jurisdiction/country:us/state:ut/government', abbr: 'UT' },
+    { ocdId: 'ocd-jurisdiction/country:us/state:vt/government', abbr: 'VT' },
+    { ocdId: 'ocd-jurisdiction/country:us/state:va/government', abbr: 'VA' },
+    { ocdId: 'ocd-jurisdiction/country:us/state:wa/government', abbr: 'WA' },
+    { ocdId: 'ocd-jurisdiction/country:us/state:wv/government', abbr: 'WV' },
+    { ocdId: 'ocd-jurisdiction/country:us/state:wi/government', abbr: 'WI' },
+    { ocdId: 'ocd-jurisdiction/country:us/state:wy/government', abbr: 'WY' }
+];
+
+async function updateStateBills() {
+    if (!OPENSTATES_API_KEY) {
+        console.error('OPENSTATES_API_KEY is not set');
+        process.exit(1);
+    }
+
+    console.log(`\n=== Updating State Bills (Since ${UPDATED_SINCE}) ===`);
+
+    let processedCount = 0;
+    let updatedCount = 0;
+    let newAiCount = 0;
+
+    // Process each state
+    for (const state of STATE_OCD_IDS) {
+        console.log(`\nChecking updates for ${state.abbr}...`);
+
+        let page = 1;
+        let hasMore = true;
+
+        while (hasMore) {
+            console.log(`  Fetching page ${page} for ${state.abbr}...`);
+            const url = `${OPENSTATES_API_BASE_URL}/bills?jurisdiction=${state.ocdId}&updated_since=${UPDATED_SINCE}&sort=updated_desc&page=${page}&per_page=20&apikey=${OPENSTATES_API_KEY}&include=abstracts&include=sponsorships&include=actions`;
+
+            try {
+                // Rate limit handling (simple)
+                await delay(200);
+
+                const response = await fetch(url);
+
+                if (response.status === 429) {
+                    console.log('Rate limit hit. Waiting 60s...');
+                    await delay(60000);
+                    continue;
+                }
+
+                if (!response.ok) {
+                    if (response.status === 404) {
+                        break; // No more results/pages likely
+                    }
+                    console.error(`Error ${response.status}: ${await response.text()}`);
+                    break;
+                }
+
+                const data: any = await response.json();
+                const bills = data.results || [];
+
+                if (bills.length === 0) {
+                    hasMore = false;
+                    break;
+                }
+
+                // Process bills
+                for (const bill of bills) {
+                    const mongoId = displayOpenStatesId(bill.id);
+                    const existing = await getLegislationById(mongoId);
+
+                    if (existing) {
+                        const transformed = transformOpenStatesBillToMongoDB(bill);
+                        // Preserve summary
+                        transformed.geminiSummary = existing.geminiSummary;
+
+                        await upsertLegislation(transformed);
+                        console.log(`[UPDATE] ${state.abbr}: ${bill.identifier} updated.`);
+                        updatedCount++;
+                    } else {
+                        const isAi = checkIsAiBill(bill);
+                        if (isAi) {
+                            const transformed = transformOpenStatesBillToMongoDB(bill);
+                            transformed.geminiSummary = null; // Ensuring explicit null
+                            await upsertLegislation(transformed);
+                            console.log(`[NEW] ${state.abbr}: ${bill.identifier} found (AI).`);
+                            newAiCount++;
+                        }
+                    }
+                }
+
+                processedCount += bills.length;
+
+                if (data.pagination && data.pagination.page < data.pagination.max_page) {
+                    page++;
+                } else {
+                    hasMore = false;
+                }
+            } catch (err) {
+                console.error(`Error processing ${state.abbr}:`, err);
+                hasMore = false;
+            }
+        }
+    }
+
+    console.log(`\n=== Update Complete ===`);
+    console.log(`Processed ${processedCount} updated bills from API.`);
+    console.log(`Updated ${updatedCount} existing AI bills.`);
+    console.log(`Found ${newAiCount} NEW AI bills.`);
+
+    process.exit(0);
+}
+
+function checkIsAiBill(bill: any): boolean {
+    const textFields = [
+        bill.title,
+        bill.abstracts?.map((a: any) => a.abstract).join(' '),
+        bill.summary
+    ].join(' ').toLowerCase();
+
+    return AI_KEYWORDS.some(kw => textFields.includes(kw));
+}
+
+updateStateBills().catch(console.error);

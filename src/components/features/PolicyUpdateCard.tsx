@@ -2,10 +2,9 @@ import React from "react";
 import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
 import { AnimatedSection } from "@/components/ui/AnimatedSection";
-import { BookmarkButton } from "@/components/features/BookmarkButton";
 import { isLegislationEnacted } from '@/utils/enacted-legislation';
-import {ShareButton} from "@/components/ui/ShareButton";
-import {STATE_MAP} from "@/types/geo";
+import { ShareButton } from "@/components/ui/ShareButton";
+import { STATE_MAP } from "@/types/geo";
 
 export interface PolicyUpdate {
   id: string;
@@ -112,9 +111,8 @@ const PolicyUpdateCard: React.FC<PolicyUpdateCardProps> = ({
   return (
     <AnimatedSection key={uniqueKey}>
       <div
-        className={`mb-4 p-4 border rounded-lg bg-background transition hover:bg-accent/50 cursor-pointer focus:outline-none focus:ring-2 focus:ring-primary h-full relative ${
-          billIsEnacted ? 'border-green-500 bg-green-50 dark:bg-green-900/20' : ''
-        }`}
+        className={`mb-4 p-4 border rounded-lg bg-background transition hover:bg-accent/50 cursor-pointer focus:outline-none focus:ring-2 focus:ring-primary h-full relative ${billIsEnacted ? 'border-green-500 bg-green-50 dark:bg-green-900/20' : ''
+          }`}
       >
         {/* Enacted Badge */}
         {billIsEnacted && (
@@ -233,18 +231,14 @@ const PolicyUpdateCard: React.FC<PolicyUpdateCardProps> = ({
             {/*</button>*/}
 
             <div onClick={e => e.stopPropagation()} className="flex items-center gap-2">
-              <BookmarkButton
-                legislationId={update.id}
-                className="h-10 px-3 rounded-md"
-              />
               <ShareButton
-                  type={'bill'}
-                  id={update.id}
-                  title={update.title}
-                  identifier={update.identifier}
-                  jurisdiction={jurisdictionAb}
-                  className="h-10 px-3 rounded-md"
-                  size="sm"
+                type={'bill'}
+                id={update.id}
+                title={update.title}
+                identifier={update.identifier}
+                jurisdiction={jurisdictionAb}
+                className="h-10 px-3 rounded-md"
+                size="sm"
               />
             </div>
           </div>

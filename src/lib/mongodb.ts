@@ -1,5 +1,9 @@
 import dotenv from 'dotenv';
-dotenv.config({ path: require('path').resolve(__dirname, '../../.env') });
+import path from 'path';
+
+// Try to load .env.local first, then .env
+dotenv.config({ path: path.resolve(__dirname, '../../.env.local') });
+dotenv.config({ path: path.resolve(__dirname, '../../.env') });
 
 
 import { MongoClient, ServerApiVersion } from 'mongodb';

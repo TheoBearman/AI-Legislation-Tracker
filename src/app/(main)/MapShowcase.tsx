@@ -37,16 +37,16 @@ export default function MapShowcase() {
         try {
             console.log('[MapShowcase] Fetching map data...');
             const response = await fetch('/api/dashboard/map-data');
-            
+
             if (!response.ok) {
                 const errorText = await response.text();
                 console.error('[MapShowcase] Failed to fetch map data:', response.status, errorText);
                 throw new Error(`Failed to fetch map data: ${response.status}`);
             }
-            
+
             const result = await response.json();
             console.log('[MapShowcase] Map data received:', result.success ? 'success' : 'failed');
-            
+
             if (result.success) {
                 setStateStats(result.data);
             } else {
@@ -332,11 +332,10 @@ export default function MapShowcase() {
                                                         <h3 className="font-semibold text-sm sm:text-lg line-clamp-1 pr-2">{stateStats[selectedState].name}</h3>
                                                         <div className="flex items-center space-x-1">
                                                             <div
-                                                                className={`w-3 h-3 rounded-full ${
-                                                                    getActivityLevel(selectedState) === 'High Activity' ? 'bg-primary' :
+                                                                className={`w-3 h-3 rounded-full ${getActivityLevel(selectedState) === 'High Activity' ? 'bg-primary' :
                                                                         getActivityLevel(selectedState) === 'Medium Activity' ? 'bg-primary/50' :
                                                                             'bg-primary/20'
-                                                                }`}
+                                                                    }`}
                                                             ></div>
                                                             <span className="text-xs text-muted-foreground hidden sm:inline">
                                                                 {getActivityLevel(selectedState).replace(' Activity', '')}
@@ -479,10 +478,6 @@ export default function MapShowcase() {
                             <ArrowRight className="ml-2 h-4 w-4 md:h-5 md:w-5" />
                         </Link>
                     </Button>
-                    <p className="text-xs md:text-sm text-muted-foreground mt-4 px-4">
-                        <span className="hidden sm:inline">Discover congressional districts, party affiliations, gerrymandering analysis, and more.</span>
-                        <span className="sm:hidden">Discover districts, party data, and more</span>
-                    </p>
                 </div>
             </div>
         </AnimatedSection>

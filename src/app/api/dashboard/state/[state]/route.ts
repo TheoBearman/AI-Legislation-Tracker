@@ -25,10 +25,29 @@ export async function GET(
 
     const legislationCollection = await getCollection('legislation');
 
+    const AI_KEYWORDS = [
+      "artificial intelligence",
+      "automated decision",
+      "machine learning",
+      "generative ai",
+      "large language model",
+      "algorithm",
+      "facial recognition"
+    ];
+
+    const aiFilter = {
+      $or: [
+        { title: { $regex: AI_KEYWORDS.join("|"), $options: "i" } },
+        { description: { $regex: AI_KEYWORDS.join("|"), $options: "i" } },
+        { abstract: { $regex: AI_KEYWORDS.join("|"), $options: "i" } }
+      ]
+    };
+
     const recentLegislation = await legislationCollection
       .find({
         jurisdictionName: { $regex: jurisdictionRegex },
-        latestActionAt: { $gte: thirtyDaysAgo }
+        latestActionAt: { $gte: thirtyDaysAgo },
+        ...aiFilter
       })
       .sort({ latestActionAt: -1 })
       .limit(10)
@@ -48,7 +67,8 @@ export async function GET(
         {
           $match: {
             jurisdictionName: { $regex: jurisdictionRegex },
-            subjects: { $exists: true, $ne: [] }
+            subjects: { $exists: true, $ne: [] },
+            ...aiFilter
           }
         },
         { $unwind: '$subjects' },
@@ -78,7 +98,8 @@ export async function GET(
         {
           $match: {
             jurisdictionName: { $regex: jurisdictionRegex },
-            sponsors: { $exists: true, $ne: [] }
+            sponsors: { $exists: true, $ne: [] },
+            ...aiFilter
           }
         },
         { $unwind: '$sponsors' },
@@ -105,7 +126,7 @@ export async function GET(
 
     const overallStats = await legislationCollection
       .aggregate([
-        { $match: { jurisdictionName: { $regex: jurisdictionRegex } } },
+        { $match: { jurisdictionName: { $regex: jurisdictionRegex }, ...aiFilter } },
         {
           $group: {
             _id: null,

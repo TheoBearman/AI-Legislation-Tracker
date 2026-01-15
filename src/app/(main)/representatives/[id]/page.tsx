@@ -1,4 +1,4 @@
-import {Button} from "@/components/ui/button";
+import { Button } from "@/components/ui/button";
 
 export const dynamic = 'force-dynamic';
 import React from "react";
@@ -7,7 +7,7 @@ import type { Bill } from '@/types/legislation';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { AnimatedSection } from '@/components/ui/AnimatedSection';
 import { Badge } from '@/components/ui/badge';
-import {ExternalLink, Info, FileText, Tag} from 'lucide-react';
+import { ExternalLink, Info, FileText, Tag } from 'lucide-react';
 import Link from 'next/link';
 import { getRepresentativeById, getBillsSponsoredByRep } from '@/services/representativesService';
 import { PartyBadge } from './PartyBadge';
@@ -168,7 +168,7 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
   const { id } = await params;
   const data = await fetchRepresentativeData(id);
   if (!data) {
-    return { title: 'Representative Not Found - StatePulse', description: 'The requested representative could not be found.' };
+    return { title: 'Representative Not Found - AI Legislation Tracker', description: 'The requested representative could not be found.' };
   }
   const rep = data.representative;
   const roleTitle = rep.current_role?.title || rep.office || '';
@@ -267,8 +267,8 @@ export default async function RepresentativeDetailPage({
 
                   // Determine if this is a Congress member
                   const isCongressMember = jurisdiction === 'US House' || jurisdiction === 'US Senate' ||
-                                          office.toLowerCase().includes('representative') || office.toLowerCase().includes('senator') ||
-                                          ((rep as any).terms && Array.isArray((rep as any).terms) && (rep as any).terms.length > 0);
+                    office.toLowerCase().includes('representative') || office.toLowerCase().includes('senator') ||
+                    ((rep as any).terms && Array.isArray((rep as any).terms) && (rep as any).terms.length > 0);
 
                   if (isCongressMember) {
                     // Extract district from terms or rep object
@@ -421,7 +421,7 @@ export default async function RepresentativeDetailPage({
                       </div>
                     ))}
                   </div>
-                  
+
                   {/* Desktop Table Layout */}
                   <div className="hidden md:block overflow-x-auto rounded-lg bg-muted/50">
                     <table className="min-w-full text-sm border">
@@ -456,65 +456,65 @@ export default async function RepresentativeDetailPage({
 
           {(((rep as any).leadership && Array.isArray((rep as any).leadership) && (rep as any).leadership.length > 0) ||
             ((rep as any).extras?.title)) && (
-            <AnimatedSection>
-              <section className="min-w-0 overflow-hidden">
-                <h3 className="text-base sm:text-lg font-semibold text-foreground flex items-center mb-2">
-                  <Info className="mr-1 sm:mr-2 h-4 w-4 sm:h-5 sm:w-5 text-primary flex-shrink-0" /> Leadership Roles
-                </h3>
+              <AnimatedSection>
+                <section className="min-w-0 overflow-hidden">
+                  <h3 className="text-base sm:text-lg font-semibold text-foreground flex items-center mb-2">
+                    <Info className="mr-1 sm:mr-2 h-4 w-4 sm:h-5 sm:w-5 text-primary flex-shrink-0" /> Leadership Roles
+                  </h3>
 
-                {/* Federal Leadership Roles (Congress members) */}
-                {(rep as any).leadership && Array.isArray((rep as any).leadership) && (rep as any).leadership.length > 0 && (
-                  <>
-                    {/* Mobile Card Layout */}
-                    <div className="block md:hidden space-y-2 mb-3">
-                      {(rep as any).leadership.map((role: any, idx: number) => (
-                        <div key={idx} className="bg-muted/50 rounded-lg p-3 border">
-                          <div className="space-y-1">
-                            <div className="font-semibold text-primary text-sm">
-                              {role.type || 'Unknown Role'}
-                            </div>
-                            <div className="text-xs">
-                              <span className="font-medium">Congress:</span> {role.congress || 'N/A'}
+                  {/* Federal Leadership Roles (Congress members) */}
+                  {(rep as any).leadership && Array.isArray((rep as any).leadership) && (rep as any).leadership.length > 0 && (
+                    <>
+                      {/* Mobile Card Layout */}
+                      <div className="block md:hidden space-y-2 mb-3">
+                        {(rep as any).leadership.map((role: any, idx: number) => (
+                          <div key={idx} className="bg-muted/50 rounded-lg p-3 border">
+                            <div className="space-y-1">
+                              <div className="font-semibold text-primary text-sm">
+                                {role.type || 'Unknown Role'}
+                              </div>
+                              <div className="text-xs">
+                                <span className="font-medium">Congress:</span> {role.congress || 'N/A'}
+                              </div>
                             </div>
                           </div>
-                        </div>
-                      ))}
-                    </div>
-                    
-                    {/* Desktop Table Layout */}
-                    <div className="hidden md:block overflow-x-auto rounded-lg bg-muted/50 mb-3">
-                      <table className="min-w-full text-sm border">
-                        <thead>
-                          <tr className="bg-muted">
-                            <th className="px-3 py-2 text-left">Type</th>
-                            <th className="px-3 py-2 text-left">Congress</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {(rep as any).leadership.map((role: any, idx: number) => (
-                            <tr key={idx} className="border-t">
-                              <td className="px-3 py-2">{role.type || '-'}</td>
-                              <td className="px-3 py-2">{role.congress || '-'}</td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  </>
-                )}
+                        ))}
+                      </div>
 
-                {/* State Leadership Roles (from extras.title) */}
-                {(rep as any).extras?.title && (
-                  <div className="p-2 sm:p-3 bg-primary/5 border border-primary/20 rounded-lg">
-                    <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-2">
-                      <span className="font-semibold text-primary text-sm">Current Leadership Position:</span>
-                      <span className="text-foreground text-sm">{(rep as any).extras.title}</span>
+                      {/* Desktop Table Layout */}
+                      <div className="hidden md:block overflow-x-auto rounded-lg bg-muted/50 mb-3">
+                        <table className="min-w-full text-sm border">
+                          <thead>
+                            <tr className="bg-muted">
+                              <th className="px-3 py-2 text-left">Type</th>
+                              <th className="px-3 py-2 text-left">Congress</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {(rep as any).leadership.map((role: any, idx: number) => (
+                              <tr key={idx} className="border-t">
+                                <td className="px-3 py-2">{role.type || '-'}</td>
+                                <td className="px-3 py-2">{role.congress || '-'}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </>
+                  )}
+
+                  {/* State Leadership Roles (from extras.title) */}
+                  {(rep as any).extras?.title && (
+                    <div className="p-2 sm:p-3 bg-primary/5 border border-primary/20 rounded-lg">
+                      <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-2">
+                        <span className="font-semibold text-primary text-sm">Current Leadership Position:</span>
+                        <span className="text-foreground text-sm">{(rep as any).extras.title}</span>
+                      </div>
                     </div>
-                  </div>
-                )}
-              </section>
-            </AnimatedSection>
-          )}
+                  )}
+                </section>
+              </AnimatedSection>
+            )}
 
           <AnimatedSection>
             <section className="min-w-0 overflow-hidden">
@@ -561,13 +561,13 @@ export default async function RepresentativeDetailPage({
                         ? `/legislation?sponsorId=${encodeURIComponent(id)}&rep=${encodeURIComponent(rep.name)}`
                         : '#';
                       return (
-                          <AnimatedSection>
-                            <Button asChild variant="outline" className="w-full group mt-4">
-                               <Link href={sponsorLink}>
-                                 View all bills sponsored
-                               </Link>
-                            </Button>
-                          </AnimatedSection>
+                        <AnimatedSection>
+                          <Button asChild variant="outline" className="w-full group mt-4">
+                            <Link href={sponsorLink}>
+                              View all bills sponsored
+                            </Link>
+                          </Button>
+                        </AnimatedSection>
                       );
                     })()
                   )}
@@ -650,28 +650,28 @@ export default async function RepresentativeDetailPage({
             const jurisdiction = typeof rep.jurisdiction === 'string' ? rep.jurisdiction : (typeof rep.jurisdiction === 'object' && rep.jurisdiction?.name) || '';
             const office = rep.office || '';
             const chamber = (rep as any).chamber || '';
-            
+
             // More comprehensive check for Congress members
-            const isCongressMember = 
+            const isCongressMember =
               // Check chamber field
               chamber === 'House of Representatives' || chamber === 'Senate' ||
               // Check if they have congressional terms
-              ((rep as any).terms && Array.isArray((rep as any).terms) && (rep as any).terms.length > 0 && 
-               (rep as any).terms.some((term: any) => term.chamber === 'House of Representatives' || term.chamber === 'Senate')) ||
+              ((rep as any).terms && Array.isArray((rep as any).terms) && (rep as any).terms.length > 0 &&
+                (rep as any).terms.some((term: any) => term.chamber === 'House of Representatives' || term.chamber === 'Senate')) ||
               // Check office field
               office.toLowerCase().includes('representative') || office.toLowerCase().includes('senator') ||
               // Check if they have congressional leadership roles
               ((rep as any).leadership && Array.isArray((rep as any).leadership) && (rep as any).leadership.length > 0) ||
               // Check if they have sponsored/cosponsored federal legislation
               ((rep as any).sponsoredLegislation || (rep as any).cosponsoredLegislation);
-            
+
             if (isCongressMember) {
               return (
-                  <RepVotingRecord
-                    key={`voting-record-${id}`}
-                    representativeId={id}
-                    representativeName={rep.name}
-                  />
+                <RepVotingRecord
+                  key={`voting-record-${id}`}
+                  representativeId={id}
+                  representativeName={rep.name}
+                />
               );
             }
             return null;
@@ -704,7 +704,7 @@ export default async function RepresentativeDetailPage({
                       </div>
                     ))}
                   </div>
-                  
+
                   {/* Desktop Table Layout */}
                   <div className="hidden md:block overflow-x-auto rounded-lg bg-muted/50">
                     <table className="min-w-full text-sm border">

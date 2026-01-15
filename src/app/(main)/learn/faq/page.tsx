@@ -8,7 +8,7 @@ export default function LearnFAQPage() {
       <AnimatedSection className="mb-12">
         <h1 className="font-headline text-3xl md:text-4xl font-bold mb-4 text-primary">Frequently Asked Questions</h1>
         <p className="text-muted-foreground mb-6 text-lg">
-          Find answers to common questions about StatePulse and how to make the most of our legislative tracking platform.
+          Find answers to common questions about AI Legislation Tracker and how to make the most of our legislative tracking platform.
         </p>
       </AnimatedSection>
 
@@ -19,12 +19,12 @@ export default function LearnFAQPage() {
             <h2 className="font-semibold text-2xl mb-6 text-primary border-b border-border/50 pb-3">Getting Started</h2>
             <div className="space-y-6">
               <div className="border-l-4 border-blue-500/30 dark:border-blue-400/50 pl-6 bg-blue-50/30 dark:bg-blue-950/20 rounded-r-lg py-4">
-                <h3 className="font-semibold mb-3 text-lg text-foreground">What is StatePulse?</h3>
-                <p className="text-muted-foreground leading-relaxed">StatePulse is a comprehensive platform for tracking state and federal legislation. We provide quick updates on bills, AI-powered summaries, representative information, and tools to help you engage with the legislative process across all 50 states and Congress.</p>
+                <h3 className="font-semibold mb-3 text-lg text-foreground">What is AI Legislation Tracker?</h3>
+                <p className="text-muted-foreground leading-relaxed">AI Legislation Tracker is a comprehensive platform for tracking state and federal legislation. We provide quick updates on bills, AI-powered summaries, representative information, and tools to help you engage with the legislative process across all 50 states and Congress.</p>
               </div>
               <div className="border-l-4 border-blue-500/30 dark:border-blue-400/50 pl-6 bg-blue-50/30 dark:bg-blue-950/20 rounded-r-lg py-4">
-                <h3 className="font-semibold mb-3 text-lg text-foreground">Is StatePulse free to use?</h3>
-                <p className="text-muted-foreground leading-relaxed">Yes! StatePulse is completely free to use for individuals. We believe civic engagement should be accessible to everyone. You can create an account, track legislation, follow representatives, and use all our features at no cost. Donations are always appreciated at <Link href="https://buymeacoffee.com/timberlake2025" className="text-blue-500 hover:underline">our donation page</Link>.</p>
+                <h3 className="font-semibold mb-3 text-lg text-foreground">Is AI Legislation Tracker free to use?</h3>
+                <p className="text-muted-foreground leading-relaxed">Yes! AI Legislation Tracker is completely free to use for individuals. We believe civic engagement should be accessible to everyone. You can create an account, track legislation, follow representatives, and use all our features at no cost.</p>
               </div>
               <div className="border-l-4 border-blue-500/30 dark:border-blue-400/50 pl-6 bg-blue-50/30 dark:bg-blue-950/20 rounded-r-lg py-4">
                 <h3 className="font-semibold mb-3 text-lg text-foreground">Do I need an account to browse legislation?</h3>
@@ -128,8 +128,8 @@ export default function LearnFAQPage() {
             <h2 className="font-semibold text-2xl mb-6 text-primary border-b border-border/50 pb-3">Data & Coverage</h2>
             <div className="space-y-6">
               <div className="border-l-4 border-teal-500/30 dark:border-teal-400/50 pl-6 bg-teal-50/30 dark:bg-teal-950/20 rounded-r-lg py-4">
-                <h3 className="font-semibold mb-3 text-lg text-foreground">Which jurisdictions does StatePulse cover?</h3>
-                <p className="text-muted-foreground leading-relaxed">StatePulse covers all 50 U.S. states plus federal legislation from the U.S. Congress. Our data comes from official government sources and the Open States Project.</p>
+                <h3 className="font-semibold mb-3 text-lg text-foreground">Which jurisdictions does AI Legislation Tracker cover?</h3>
+                <p className="text-muted-foreground leading-relaxed">AI Legislation Tracker covers all 50 U.S. states plus federal legislation from the U.S. Congress. Our data comes from official government sources and the Open States Project.</p>
               </div>
               <div className="border-l-4 border-teal-500/30 dark:border-teal-400/50 pl-6 bg-teal-50/30 dark:bg-teal-950/20 rounded-r-lg py-4">
                 <h3 className="font-semibold mb-3 text-lg text-foreground">How often is the data updated?</h3>
@@ -154,11 +154,11 @@ export default function LearnFAQPage() {
               </div>
               <div className="border-l-4 border-slate-500/30 dark:border-slate-400/50 pl-6 bg-slate-50/30 dark:bg-slate-950/20 rounded-r-lg py-4">
                 <h3 className="font-semibold mb-3 text-lg text-foreground">How can I contact support or provide feedback?</h3>
-                <p className="text-muted-foreground leading-relaxed">You can reach us at <a href="mailto:contact@statepulse.me" className="text-primary hover:text-primary/80 underline underline-offset-2">contact@statepulse.me</a> for support questions, bug reports, or feature suggestions. We're continuously improving StatePulse based on user feedback.</p>
+                <p className="text-muted-foreground leading-relaxed">You can reach us at <a href="mailto:contact@statepulse.me" className="text-primary hover:text-primary/80 underline underline-offset-2">contact@statepulse.me</a> for support questions, bug reports, or feature suggestions. We're continuously improving the platform based on user feedback.</p>
               </div>
               <div className="border-l-4 border-slate-500/30 dark:border-slate-400/50 pl-6 bg-slate-50/30 dark:bg-slate-950/20 rounded-r-lg py-4">
-                <h3 className="font-semibold mb-3 text-lg text-foreground">Is StatePulse affiliated with any political organization?</h3>
-                <p className="text-muted-foreground leading-relaxed">No, StatePulse is an independent, non-partisan platform. We provide objective information about legislation and representatives without political bias. Our goal is to make civic engagement accessible to everyone, regardless of political affiliation.</p>
+                <h3 className="font-semibold mb-3 text-lg text-foreground">Is AI Legislation Tracker affiliated with any political organization?</h3>
+                <p className="text-muted-foreground leading-relaxed">No, AI Legislation Tracker is an independent, non-partisan platform. We provide objective information about legislation and representatives without political bias. Our goal is to make civic engagement accessible to everyone, regardless of political affiliation.</p>
               </div>
             </div>
           </section>
@@ -169,7 +169,7 @@ export default function LearnFAQPage() {
           <div className="mt-16 p-8 bg-muted/50 dark:bg-muted/30 rounded-xl border border-border/50">
             <h3 className="font-semibold text-xl mb-4 text-foreground">Still have questions?</h3>
             <p className="text-muted-foreground mb-6 leading-relaxed">
-              If you couldn't find what you were looking for, we're here to help! Feel free to reach out with any questions about using StatePulse or understanding the legislative process.
+              If you couldn't find what you were looking for, we're here to help! Feel free to reach out with any questions about using AI Legislation Tracker or understanding the legislative process.
             </p>
             <div className="flex flex-col sm:flex-row gap-4">
               <Button asChild>
@@ -179,7 +179,7 @@ export default function LearnFAQPage() {
               </Button>
               <Button variant="outline" asChild>
                 <Link href="/about">
-                  Learn More About StatePulse
+                  Learn More About Us
                 </Link>
               </Button>
             </div>
