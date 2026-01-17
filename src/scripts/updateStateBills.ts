@@ -18,6 +18,8 @@ const PROGRESS_FILE = path.resolve(process.cwd(), 'data/state-update-progress.js
 // Progress tracking
 interface UpdateProgress {
     completedStates: string[];
+    currentState?: string;  // State currently being processed
+    currentPage?: number;   // Last successful page for current state
     lastUpdated: string;
 }
 
@@ -25,7 +27,12 @@ function loadProgress(): UpdateProgress {
     try {
         if (fs.existsSync(PROGRESS_FILE)) {
             const data = fs.readFileSync(PROGRESS_FILE, 'utf-8');
-            return JSON.parse(data);
+            const progress = JSON.parse(data);
+            // Log resume info if there's a state in progress
+            if (progress.currentState && progress.currentPage) {
+                console.log(`Resuming ${progress.currentState} from page ${progress.currentPage}`);
+            }
+            return progress;
         }
     } catch (error) {
         console.log('No existing progress file or error reading it.');
@@ -233,7 +240,13 @@ async function updateStateBills() {
     for (const state of statesToProcess) {
         console.log(`\nChecking updates for ${state.abbr}...`);
 
+        // Check if we're resuming this specific state from a previous run
         let page = 1;
+        if (progress.currentState === state.abbr && progress.currentPage) {
+            page = progress.currentPage;
+            console.log(`  Resuming from page ${page}`);
+        }
+
         let hasMore = true;
         let stateHadUpdates = false;
         let consecutiveRateLimits = 0;
@@ -251,6 +264,14 @@ async function updateStateBills() {
                 if (response.status === 429) {
                     consecutiveRateLimits++;
                     console.log(`⚠️  Rate limit hit (${consecutiveRateLimits}/5). Waiting 2 minutes...`);
+
+                    // Save progress when we're stuck (>=2 consecutive hits)
+                    if (consecutiveRateLimits >= 2) {
+                        console.log('  💾 Saving progress due to consecutive rate limits...');
+                        progress.lastUpdated = new Date().toISOString();
+                        saveProgress(progress);
+                    }
+
                     await delay(120000); // Wait 2 minutes
 
                     if (consecutiveRateLimits >= 5) {
@@ -262,6 +283,11 @@ async function updateStateBills() {
                 }
                 // Reset counter on success or other errors
                 consecutiveRateLimits = 0;
+
+                // Update progress with current state and page after successful fetch
+                progress.currentState = state.abbr;
+                progress.currentPage = page;
+                progress.lastUpdated = new Date().toISOString();
 
                 if (!response.ok) {
                     if (response.status === 404) {
@@ -329,6 +355,9 @@ async function updateStateBills() {
 
                 if (data.pagination && data.pagination.page < data.pagination.max_page) {
                     page++;
+                    // Save progress after successfully processing each page
+                    progress.currentPage = page;
+                    saveProgress(progress);
                 } else {
                     hasMore = false;
                 }
@@ -345,6 +374,9 @@ async function updateStateBills() {
         // Mark state as completed
         if (!progress.completedStates.includes(state.abbr)) {
             progress.completedStates.push(state.abbr);
+            // Clear current state tracking since we completed this state
+            delete progress.currentState;
+            delete progress.currentPage;
             progress.lastUpdated = new Date().toISOString();
             saveProgress(progress);
         }

@@ -1,8 +1,8 @@
-import {ai} from '@/ai/genkit';
+import { ai } from '@/ai/genkit';
 import fetch from 'node-fetch';
 import pdf from 'pdf-parse';
 import * as cheerio from 'cheerio';
-import {Legislation} from '@/types/legislation';
+import { Legislation } from '@/types/legislation';
 
 // Global flag to track Puppeteer availability
 let puppeteerEnabled = true;
@@ -419,6 +419,65 @@ export async function generateOllamaSummary(text: string, model: string): Promis
 }
 
 /**
+ * Extracts plain text content from an HTML page URL
+ * Useful as a fallback when PDF extraction fails
+ */
+async function extractHtmlTextFromUrl(url: string): Promise<string | null> {
+  try {
+    const response = await fetch(url, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+      }
+    });
+
+    if (!response.ok) return null;
+
+    const html = await response.text();
+    const $ = cheerio.load(html);
+
+    // Remove non-content elements
+    $('script, style, nav, header, footer, .navigation, .menu, .sidebar').remove();
+
+    // Try specific bill content selectors first (most specific to least specific)
+    const selectors = [
+      'pre.bill-text',
+      '.bill-text',
+      '#bill-text',
+      '#bill-content',
+      '.bill-content',
+      '#bill_all',
+      '.section',
+      'article',
+      'main',
+      '.content'
+    ];
+
+    for (const selector of selectors) {
+      const element = $(selector);
+      if (element.length > 0) {
+        const text = element.text().trim();
+        if (text.length > 200) {
+          console.log(`[HTML] Extracted ${text.length} chars from selector: ${selector}`);
+          return text;
+        }
+      }
+    }
+
+    // Fallback: get body text if selectors didn't work
+    const bodyText = $('body').text().trim();
+    if (bodyText.length > 200) {
+      console.log(`[HTML] Extracted ${bodyText.length} chars from body`);
+      return bodyText;
+    }
+
+    return null;
+  } catch (error: any) {
+    console.log('[HTML] Error extracting text:', error.message);
+    return null;
+  }
+}
+
+/**
  * Optimized function that extracts text from the richest source and generates appropriate summaries in a single pass
  * Handles all jurisdiction types including US Congress with specialized PDF extraction
  */
@@ -432,25 +491,27 @@ export async function summarizeLegislationOptimized(bill: Legislation): Promise<
   // Helper function to fetch and extract PDF content
   const extractPdfContent = async (pdfUrl: string, sourceType: string): Promise<{ summary: string; longSummary: string | null; sourceType: string } | null> => {
     try {
-      console.log('[DEBUG] Trying PDF URL:', pdfUrl);
+      console.log('[PDF] Trying:', pdfUrl);
       const pdfRes = await fetch(pdfUrl);
       if (!pdfRes.ok) {
-        console.log('[Bill Extraction] PDF fetch failed:', pdfUrl, 'Status:', pdfRes.status);
+        console.log(`[PDF] ✗ Fetch failed (${pdfRes.status}):`, pdfUrl);
         return null;
       }
       const buffer = await pdfRes.arrayBuffer();
       const data = await pdf(Buffer.from(buffer));
-      console.log('[DEBUG] PDF text length:', data.text?.length || 0);
+      const extractedLength = data.text?.length || 0;
+      console.log(`[PDF] Extracted ${extractedLength} chars`);
 
-      if (data.text && data.text.trim().length > 100) {
-        console.log('[Bill Extraction] Using PDF:', pdfUrl);
+      // Lower threshold from 100 to 50 to be more lenient
+      if (data.text && data.text.trim().length > 50) {
+        console.log(`[PDF] ✓ Using PDF (${extractedLength} chars)`);
         return await generateOptimizedGeminiSummary(data.text.trim(), sourceType);
       } else {
-        console.log('[Bill Extraction] Skipped PDF (too short):', pdfUrl, 'Length:', data.text?.length || 0);
+        console.log(`[PDF] ✗ Too short (${extractedLength} chars, need >50)`);
         return null;
       }
-    } catch (e) {
-      console.log('[Bill Extraction] Error fetching/parsing PDF:', pdfUrl, e);
+    } catch (e: any) {
+      console.log('[PDF] ✗ Error:', e.message || e);
       return null;
     }
   };
@@ -538,7 +599,7 @@ export async function summarizeLegislationOptimized(bill: Legislation): Promise<
             if (res.ok) {
               const html = await res.text();
               const $ = cheerio.load(html);
-              
+
               // Extract text from the specific California bill element
               const billAllElement = $('#bill_all[align="justify"]');
               if (billAllElement.length > 0) {
@@ -574,7 +635,7 @@ export async function summarizeLegislationOptimized(bill: Legislation): Promise<
             if (res.ok) {
               // Try to extract PDF links from the text page
               let pdfLinks = await getBillPdfLinksFromPage(textUrl);
-              
+
               // If no PDFs found with regular approach, try Puppeteer for JS-rendered pages (if enabled)
               if (pdfLinks.length === 0 && puppeteerEnabled) {
                 console.log('[Texas] No PDFs found with fetch, trying Puppeteer for:', textUrl);
@@ -584,19 +645,19 @@ export async function summarizeLegislationOptimized(bill: Legislation): Promise<
                   puppeteerFailureCount = 0;
                 } catch (puppeteerError: any) {
                   console.log('[Texas] Puppeteer failed for:', textUrl, 'Error:', puppeteerError.message);
-                  
+
                   // Track failures and disable Puppeteer if it consistently fails
                   puppeteerFailureCount++;
                   if (puppeteerFailureCount >= MAX_PUPPETEER_FAILURES) {
                     console.warn(`[Puppeteer] Disabling Puppeteer after ${MAX_PUPPETEER_FAILURES} consecutive failures. System appears to be missing required dependencies.`);
                     puppeteerEnabled = false;
                   }
-                  
+
                   // Continue with empty pdfLinks array - don't fail the entire process
                   pdfLinks = [];
                 }
               }
-              
+
               // Process any found PDF links
               for (let pdfUrl of pdfLinks) {
                 const result = await extractPdfContent(pdfUrl, 'pdf-extracted');
@@ -712,7 +773,7 @@ export async function summarizeLegislationOptimized(bill: Legislation): Promise<
       try {
         // First try regular fetch-based extraction
         let pdfLinks = await getBillPdfLinksFromPage(source.url);
-        
+
         // If no PDFs found with regular approach, try Puppeteer for JS-rendered pages (if enabled)
         if (pdfLinks.length === 0 && puppeteerEnabled) {
           console.log('[DEBUG] No PDFs found with fetch, trying Puppeteer for:', source.url);
@@ -722,25 +783,37 @@ export async function summarizeLegislationOptimized(bill: Legislation): Promise<
             puppeteerFailureCount = 0;
           } catch (puppeteerError: any) {
             console.log('[DEBUG] Puppeteer failed for:', source.url, 'Error:', puppeteerError.message);
-            
+
             // Track failures and disable Puppeteer if it consistently fails
             puppeteerFailureCount++;
             if (puppeteerFailureCount >= MAX_PUPPETEER_FAILURES) {
               console.warn(`[Puppeteer] Disabling Puppeteer after ${MAX_PUPPETEER_FAILURES} consecutive failures. System appears to be missing required dependencies.`);
               puppeteerEnabled = false;
             }
-            
+
             // Continue with empty pdfLinks array - don't fail the entire process
             pdfLinks = [];
           }
         } else if (pdfLinks.length === 0 && !puppeteerEnabled) {
           console.log('[DEBUG] Skipping Puppeteer (disabled due to previous failures) for:', source.url);
         }
-        
+
         // Process any found PDF links
         for (let pdfUrl of pdfLinks) {
           const result = await extractPdfContent(pdfUrl, 'pdf-extracted');
           if (result) return result;
+        }
+
+        // NEW: If no PDFs worked, try extracting HTML text as fallback
+        if (pdfLinks.length === 0 || source.url) {
+          console.log('[HTML] Trying HTML extraction from:', source.url);
+          const htmlText = await extractHtmlTextFromUrl(source.url);
+          if (htmlText && htmlText.length > 200) {
+            console.log(`[HTML] ✓ Using HTML text (${htmlText.length} chars)`);
+            return await generateOptimizedGeminiSummary(htmlText, 'html-extracted');
+          } else {
+            console.log(`[HTML] ✗ Insufficient text (${htmlText?.length || 0} chars, need >200)`);
+          }
         }
       } catch (e: any) {
         console.log('[Bill Extraction] Error processing source:', source.url, 'Error:', e.message);
@@ -764,7 +837,7 @@ export async function getBillPdfLinksFromPage(url: string): Promise<string[]> {
   });
   if (!res.ok) throw new Error(`Failed to fetch page: ${url} (status: ${res.status})`);
   const html = await res.text();
-  
+
   // Multiple regex patterns to catch different PDF link formats
   const pdfRegexes = [
     // Standard <a href="...pdf"> links
@@ -776,9 +849,9 @@ export async function getBillPdfLinksFromPage(url: string): Promise<string[]> {
     // Plain text URLs in the HTML
     /https?:\/\/[^\s"'<>]+\.pdf[\w\/\-\?=&]*/gi
   ];
-  
+
   const allPdfUrls = new Set<string>();
-  
+
   for (const regex of pdfRegexes) {
     const matches = Array.from(html.matchAll(regex));
     for (const match of matches) {
@@ -788,7 +861,7 @@ export async function getBillPdfLinksFromPage(url: string): Promise<string[]> {
       }
     }
   }
-  
+
   // Convert to array and make relative links absolute
   const pdfLinks = Array.from(allPdfUrls).map(link => {
     if (!link.startsWith('http')) {
@@ -797,7 +870,7 @@ export async function getBillPdfLinksFromPage(url: string): Promise<string[]> {
     }
     return link;
   });
-  
+
   return pdfLinks;
 }
 
@@ -806,13 +879,13 @@ export async function getBillPdfLinksFromPage(url: string): Promise<string[]> {
  */
 async function withTimeout<T>(promise: Promise<T>, timeoutMs: number, timeoutMessage: string): Promise<T> {
   let timeoutHandle: NodeJS.Timeout;
-  
+
   const timeoutPromise = new Promise<T>((_, reject) => {
     timeoutHandle = setTimeout(() => {
       reject(new Error(timeoutMessage));
     }, timeoutMs);
   });
-  
+
   try {
     const result = await Promise.race([promise, timeoutPromise]);
     clearTimeout(timeoutHandle!);
@@ -835,7 +908,7 @@ export async function getBillPdfLinksFromPagePuppeteer(url: string): Promise<str
     return await withTimeout(
       (async () => {
         const puppeteer = await import('puppeteer');
-        
+
         // Comprehensive browser launch options for better Linux compatibility
         const launchOptions = {
           headless: true,
@@ -862,31 +935,31 @@ export async function getBillPdfLinksFromPagePuppeteer(url: string): Promise<str
 
         console.log('[Puppeteer] Attempting to launch browser with enhanced compatibility options...');
         const browser = await puppeteer.default.launch(launchOptions);
-        
+
         try {
           const page = await browser.newPage();
-          
+
           // Set a user agent to avoid blocking
           await page.setUserAgent('Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36');
-          
+
           // Navigate and wait for network to settle (with timeout)
-          await page.goto(url, { 
+          await page.goto(url, {
             waitUntil: 'networkidle2',
-            timeout: 25000 
+            timeout: 25000
           });
-          
+
           // Wait a bit more for any lazy-loaded content
           await new Promise(resolve => setTimeout(resolve, 2000));
-          
+
           const pdfLinks: string[] = await page.evaluate(() => {
             const anchors = Array.from(document.querySelectorAll('a'));
             const allLinks = anchors
               .map(a => a.href)
-              .filter(href => href && 
-                href.toLowerCase().includes('pdf') && 
+              .filter(href => href &&
+                href.toLowerCase().includes('pdf') &&
                 (href.toLowerCase().includes('bill') || href.toLowerCase().includes('legislation'))
               );
-            
+
             // Also check for any links in data attributes or other sources
             const dataLinks: string[] = [];
             document.querySelectorAll('[data-url], [data-href], [data-link]').forEach(el => {
@@ -898,13 +971,13 @@ export async function getBillPdfLinksFromPagePuppeteer(url: string): Promise<str
                 }
               });
             });
-            
+
             return [...allLinks, ...dataLinks];
           });
-          
+
           await browser.close();
           console.log('[Puppeteer] Successfully extracted PDF links:', pdfLinks.length);
-          
+
           // Deduplicate and filter out invalid URLs
           return Array.from(new Set(pdfLinks)).filter(link => {
             try {
@@ -929,15 +1002,15 @@ export async function getBillPdfLinksFromPagePuppeteer(url: string): Promise<str
       console.log('[Puppeteer] Falling back to regular fetch-based PDF extraction...');
       return [];
     }
-    
+
     console.error('[Puppeteer] Browser launch failed:', error.message);
-    
+
     // Check for specific missing library errors and provide helpful guidance
-    if (error.message.includes('libatk-1.0.so.0') || 
-        error.message.includes('libnss3.so') ||
-        error.message.includes('libgtk') ||
-        error.message.includes('shared libraries')) {
-      
+    if (error.message.includes('libatk-1.0.so.0') ||
+      error.message.includes('libnss3.so') ||
+      error.message.includes('libgtk') ||
+      error.message.includes('shared libraries')) {
+
       console.error(`
 [Puppeteer] Missing system dependencies detected. This is a common issue on Linux systems.
 
@@ -980,7 +1053,7 @@ sudo yum install -y chromium
 Falling back to regular HTTP fetch for PDF extraction...
       `);
     }
-    
+
     // Graceful fallback: return empty array so the process can continue with other extraction methods
     console.log('[Puppeteer] Falling back to regular fetch-based PDF extraction...');
     return [];

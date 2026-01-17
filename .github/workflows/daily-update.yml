@@ -9,7 +9,15 @@ on:
 jobs:
   update-database:
     runs-on: ubuntu-latest
-    timeout-minutes: 60
+    timeout-minutes: 120
+    permissions:
+      contents: write # Allow committing progress back to repo
+    
+    services:
+      mongodb:
+        image: mongo:latest
+        ports:
+          - 27017:27017
     
     steps:
       - name: Checkout repository
@@ -22,14 +30,66 @@ jobs:
           cache: 'npm'
 
       - name: Install dependencies
-        run: npm install --legacy-peer-deps
+        run: npm ci
 
-      - name: Run daily update script
+      - name: Determine Last Run Date
+        id: get_date
+        run: |
+          # Default to Jan 13, 2026 at 03:00 UTC if no file exists
+          DEFAULT_DATE="2026-01-13T03:00:00Z"
+          
+          if [ -f .github/daily-update-last-run.txt ]; then
+            LAST_RUN=$(cat .github/daily-update-last-run.txt)
+            echo "Found last run date: $LAST_RUN"
+            echo "FROM_DATE=$LAST_RUN" >> $GITHUB_ENV
+          else
+            echo "No last run file found. Using default: $DEFAULT_DATE"
+            echo "FROM_DATE=$DEFAULT_DATE" >> $GITHUB_ENV
+          fi
+
+      - name: Run State Bills Update
+        env:
+          MONGODB_URI: ${{ secrets.MONGODB_URI }}
+          OPENSTATES_API_KEY: ${{ secrets.OPENSTATES_API_KEY }}
+        run: |
+          echo "Fetching state bill updates since: $FROM_DATE"
+          # updateStateBills.ts uses its own progress tracking, not the FROM_DATE
+          # It will pick up where it left off automatically
+          npx tsx src/scripts/updateStateBills.ts
+
+      - name: Run Daily Update Script
         env:
           MONGODB_URI: ${{ secrets.MONGODB_URI }}
           OPENSTATES_API_KEY: ${{ secrets.OPENSTATES_API_KEY }}
           US_CONGRESS_API_KEY: ${{ secrets.US_CONGRESS_API_KEY }}
-        run: npx tsx src/scripts/dailyUpdate.ts
+        run: |
+          echo "Running daily updates for votes, legislators, and executive orders"
+          npx tsx src/scripts/dailyUpdate.ts
+
+      - name: Generate AI Summaries for New Bills
+        env:
+          MONGODB_URI: ${{ secrets.MONGODB_URI }}
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+          OPENROUTER_MODEL: ${{ secrets.OPENROUTER_MODEL }}
+        run: |
+          echo "Generating AI summaries for bills without summaries (2024+)"
+          npx tsx src/scripts/generateMissingSummaries.ts
+
+
+      - name: Update Last Run Timestamp
+        if: success()
+        run: |
+          # Save current UTC time as next run's start time
+          date -u +"%Y-%m-%dT%H:%M:%SZ" > .github/daily-update-last-run.txt
+
+      - name: Commit and Push Progress
+        if: success()
+        run: |
+          git config --global user.name "GitHub Action Bot"
+          git config --global user.email "actions@github.com"
+          git add .github/daily-update-last-run.txt data/state-update-progress.json
+          # Only commit if there are changes
+          git diff --quiet && git diff --staged --quiet || (git commit -m "Update daily digest last run timestamp and state bills progress" && git push)
 
       - name: Upload logs on failure
         if: failure()
@@ -38,4 +98,5 @@ jobs:
           name: update-logs-${{ github.run_number }}
           path: |
             data/daily_update_state.json
+            data/state-update-progress.json
           retention-days: 7

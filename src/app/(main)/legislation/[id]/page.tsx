@@ -211,7 +211,7 @@ export default async function LegislationDetailPage({ params }: { params: { id: 
                 <Info className="mr-2 h-5 w-5 text-primary flex-shrink-0" /> Key Details
               </h3>
               {billIsEnacted && (
-                <div className="p-3 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-md">
+                <div className="p-3 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-sm">
                   <div className="flex items-center gap-2 mb-1">
                     <Badge variant="default" className="bg-green-600 text-white">ENACTED</Badge>
                     <span className="text-sm font-semibold text-green-800 dark:text-green-200">This Bill is Now Law</span>
@@ -283,7 +283,7 @@ export default async function LegislationDetailPage({ params }: { params: { id: 
                 <FileText className="mr-2 h-6 w-6 text-primary flex-shrink-0" /> Abstracts
               </h3>
               {abstracts.map((abstract, index) => (
-                <div key={index} className="p-3 border rounded-md bg-muted/50 mb-2">
+                <div key={index} className="p-3 border rounded-sm bg-muted/50 mb-2">
                   <div
                     className="text-sm text-foreground break-words prose prose-sm dark:prose-invert max-w-none"
                     dangerouslySetInnerHTML={{ __html: abstract.abstract }}
@@ -300,7 +300,7 @@ export default async function LegislationDetailPage({ params }: { params: { id: 
                 <FileText className="mr-2 h-6 w-6 text-primary flex-shrink-0" /> Bill Summary
               </h3>
               {summaries.map((summary, index) => (
-                <div key={index} className="p-4 border rounded-md bg-muted/50 mb-3">
+                <div key={index} className="p-4 border rounded-sm bg-muted/50 mb-3">
                   <div
                     className="text-sm text-foreground break-words prose prose-sm dark:prose-invert max-w-none"
                     dangerouslySetInnerHTML={{ __html: summary.text }}
@@ -328,7 +328,7 @@ export default async function LegislationDetailPage({ params }: { params: { id: 
                 <FileText className="mr-2 h-6 w-6 text-primary flex-shrink-0" />
                 {classification && classification.includes('executive-order') ? 'Executive Order Text' : 'Legislation Text'}
               </h3>
-              <div className="p-4 border rounded-md bg-muted/30 whitespace-pre-wrap font-mono text-sm max-h-96 overflow-y-auto">
+              <div className="p-4 border rounded-sm bg-muted/30 whitespace-pre-wrap font-mono text-sm max-h-96 overflow-y-auto">
                 {legislation.fullText}
               </div>
             </AnimatedSection>
@@ -343,7 +343,7 @@ export default async function LegislationDetailPage({ params }: { params: { id: 
               </h3>
               <ul className="space-y-2">
                 {versions.map((version, index) => (
-                  <li key={index} className="p-3 border rounded-md bg-muted/50">
+                  <li key={index} className="p-3 border rounded-sm bg-muted/50">
                     <p className="font-medium text-foreground break-words">{version.note}</p>
                     {version.date && <p className="text-xs text-muted-foreground">Date: {formatDateUTC(new Date(version.date))}</p>}
                     {version.links && version.links.map((link: { url: string; media_type?: string | null }) => (
