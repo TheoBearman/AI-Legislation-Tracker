@@ -12,7 +12,8 @@ config({ path: path.resolve(process.cwd(), '.env') });
 
 const OPENSTATES_API_KEY = process.env.OPENSTATES_API_KEY;
 const OPENSTATES_API_BASE_URL = 'https://v3.openstates.org';
-const UPDATED_SINCE = process.env.UPDATED_SINCE || '2026-01-01'; // From workflow or bulk dump date
+// OpenStates API wants YYYY-MM-DD or YYYY-MM-DDTHH:MM:SS (no Z suffix)
+const UPDATED_SINCE = (process.env.UPDATED_SINCE || '2026-01-01').replace(/Z$/, '');
 const PROGRESS_FILE = path.resolve(process.cwd(), 'data/state-update-progress.json');
 
 // Progress tracking
