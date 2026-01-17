@@ -22,6 +22,7 @@ const CONGRESS_API_KEYS = [
     process.env.US_CONGRESS_API_KEY_BACKUP_1,
     process.env.US_CONGRESS_API_KEY_BACKUP_2,
 ].filter(Boolean) as string[];
+console.log('ℹ️  Loaded ' + CONGRESS_API_KEYS.length + ' Congress API keys.');
 
 const CONGRESS_API_BASE_URL = 'https://api.congress.gov/v3';
 
