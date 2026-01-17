@@ -10,7 +10,29 @@ import fs from 'fs';
 config({ path: path.resolve(process.cwd(), '.env.local') });
 config({ path: path.resolve(process.cwd(), '.env') });
 
-const OPENSTATES_API_KEY = process.env.OPENSTATES_API_KEY;
+// OpenStates API Keys (primary + backups) - automatically filters out undefined keys
+const OPENSTATES_API_KEYS = [
+    process.env.OPENSTATES_API_KEY,
+    process.env.OPENSTATES_API_KEY_BACKUP_1,
+    process.env.OPENSTATES_API_KEY_BACKUP_2,
+].filter(Boolean) as string[];
+
+// Key rotation state
+let currentKeyIndex = 0;
+
+function getCurrentOpenStatesApiKey(): string {
+    return OPENSTATES_API_KEYS[currentKeyIndex] || '';
+}
+
+function rotateOpenStatesApiKey(): void {
+    if (currentKeyIndex < OPENSTATES_API_KEYS.length - 1) {
+        currentKeyIndex++;
+        console.log(`🔄 Rotating to backup OpenStates API key #${currentKeyIndex + 1}`);
+    } else {
+        console.warn('⚠️  All OpenStates API keys exhausted. Continuing with last key.');
+    }
+}
+
 const OPENSTATES_API_BASE_URL = 'https://v3.openstates.org';
 // OpenStates API wants YYYY-MM-DD or YYYY-MM-DDTHH:MM:SS (no Z suffix)
 const UPDATED_SINCE = (process.env.UPDATED_SINCE || '2026-01-01').replace(/Z$/, '');
@@ -203,10 +225,12 @@ const STATE_OCD_IDS: { ocdId: string; abbr: string }[] = [
 ];
 
 async function updateStateBills() {
-    if (!OPENSTATES_API_KEY) {
-        console.error('OPENSTATES_API_KEY is not set');
+    if (OPENSTATES_API_KEYS.length === 0) {
+        console.error('No OPENSTATES_API_KEY set');
         process.exit(0); // Exit gracefully - don't block workflow
     }
+
+    console.log(`ℹ️  Loaded ${OPENSTATES_API_KEYS.length} OpenStates API keys.`);
 
     // Load progress
     const progress = loadProgress();
@@ -253,8 +277,8 @@ async function updateStateBills() {
         let consecutiveRateLimits = 0;
 
         while (hasMore) {
-            console.log(`  Fetching page ${page} for ${state.abbr}...`);
-            const url = `${OPENSTATES_API_BASE_URL}/bills?jurisdiction=${state.ocdId}&updated_since=${UPDATED_SINCE}&sort=updated_desc&page=${page}&per_page=20&apikey=${OPENSTATES_API_KEY}&include=abstracts&include=sponsorships&include=actions`;
+            console.log(`  Fetching page ${page} for ${state.abbr} (Key #${currentKeyIndex + 1})...`);
+            const url = `${OPENSTATES_API_BASE_URL}/bills?jurisdiction=${state.ocdId}&updated_since=${UPDATED_SINCE}&sort=updated_desc&page=${page}&per_page=20&apikey=${getCurrentOpenStatesApiKey()}&include=abstracts&include=sponsorships&include=actions`;
 
             try {
                 // Increased delay to reduce rate limit hits
@@ -271,6 +295,13 @@ async function updateStateBills() {
                         console.log('  💾 Saving progress due to consecutive rate limits...');
                         progress.lastUpdated = new Date().toISOString();
                         saveProgress(progress);
+                    }
+
+                    if (consecutiveRateLimits >= 2 && currentKeyIndex < OPENSTATES_API_KEYS.length - 1) {
+                        rotateOpenStatesApiKey();
+                        consecutiveRateLimits = 0;
+                        await delay(5000); // Short delay after rotation
+                        continue;
                     }
 
                     await delay(120000); // Wait 2 minutes

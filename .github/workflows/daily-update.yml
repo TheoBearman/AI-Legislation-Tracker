@@ -2,8 +2,8 @@ name: Daily Database Update
 
 on:
   schedule:
-    # Run daily at 3 AM UTC
-    - cron: '0 3 * * *'
+    # Run daily at 6 AM UTC
+    - cron: '0 6 * * *'
   workflow_dispatch: # Allow manual trigger from GitHub UI
 
 jobs:
@@ -51,6 +51,8 @@ jobs:
         env:
           MONGODB_URI: ${{ secrets.MONGODB_URI }}
           OPENSTATES_API_KEY: ${{ secrets.OPENSTATES_API_KEY }}
+          OPENSTATES_API_KEY_BACKUP_1: ${{ secrets.OPENSTATES_API_KEY_BACKUP_1 }}
+          OPENSTATES_API_KEY_BACKUP_2: ${{ secrets.OPENSTATES_API_KEY_BACKUP_2 }}
           UPDATED_SINCE: ${{ env.FROM_DATE }}
         run: |
           echo "Fetching state bill updates since: $FROM_DATE"
