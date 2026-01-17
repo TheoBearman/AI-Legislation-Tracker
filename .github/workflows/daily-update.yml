@@ -90,9 +90,9 @@ jobs:
         run: |
           git config --global user.name "GitHub Action Bot"
           git config --global user.email "actions@github.com"
-          git add .github/daily-update-last-run.txt data/state-update-progress.json
+          git add .github/daily-update-last-run.txt data/state-update-progress.json data/congress-update-progress.json
           # Only commit if there are changes
-          git diff --quiet && git diff --staged --quiet || (git commit -m "Update daily digest last run timestamp and state bills progress" && git push)
+          git diff --quiet && git diff --staged --quiet || (git commit -m "Update daily digest timestamps and progress files" && git push)
 
       - name: Upload logs on failure
         if: failure()

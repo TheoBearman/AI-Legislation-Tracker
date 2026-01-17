@@ -727,18 +727,14 @@ async function runDailyUpdate() {
         errors.push('State Legislators');
     }
 
-    // Report summary
-    if (errors.length > 0) {
-        console.warn(`\n⚠️  Some updates failed: ${errors.join(', ')}`); 
-        console.warn('Continuing workflow - successful updates have been saved\n');
-    }
-
     saveState({ lastRun: today });
-    console.log(`\n=== Daily Update Complete ===`);
-    console.log(`Successful: ${4 - errors.length}/4 update sections`);
-    
-    // Exit with 0 even if some updates failed - timestamp should always update
+    console.log(`\n=== All Updates Complete. New Baseline: ${today} ===`);
     process.exit(0);
+
+} catch (error) {
+    console.error('Fatal Error during daily update:', error);
+    process.exit(1);
+}
 }
 
 runDailyUpdate().catch(console.error);
