@@ -13,7 +13,30 @@ import fs from 'fs';
 config({ path: path.resolve(process.cwd(), '.env.local') });
 config({ path: path.resolve(process.cwd(), '.env') });
 
-const OPENSTATES_API_KEY = process.env.OPENSTATES_API_KEY;
+// OpenStates API Keys (primary + backups) - automatically filters out undefined keys
+const OPENSTATES_API_KEYS = [
+    process.env.OPENSTATES_API_KEY,
+    process.env.OPENSTATES_API_KEY_BACKUP_1,
+    process.env.OPENSTATES_API_KEY_BACKUP_2,
+].filter(Boolean) as string[];
+
+// OpenStates Key Rotation
+let currentOpenStatesKeyIndex = 0;
+let consecutiveOpenStatesRateLimits = 0;
+
+function getCurrentOpenStatesApiKey(): string {
+    return OPENSTATES_API_KEYS[currentOpenStatesKeyIndex] || '';
+}
+
+function rotateOpenStatesApiKey(): void {
+    if (currentOpenStatesKeyIndex < OPENSTATES_API_KEYS.length - 1) {
+        currentOpenStatesKeyIndex++;
+        consecutiveOpenStatesRateLimits = 0;
+        console.log(`🔄 Rotating to backup OpenStates API key #${currentOpenStatesKeyIndex + 1}`);
+    } else {
+        console.warn('⚠️  All OpenStates API keys exhausted. Continuing with last key.');
+    }
+}
 const OPENSTATES_API_BASE_URL = 'https://v3.openstates.org';
 
 // Congress API Keys (primary + backups) - automatically filters out undefined keys
@@ -327,124 +350,11 @@ async function fetchWithRetry(url: string, retries = 3, backoff = 2000): Promise
 
 // --- Update Functions ---
 
-async function updateStateBills(updatedSince: string) {
-    if (!OPENSTATES_API_KEY) {
-        console.error('OPENSTATES_API_KEY is missing. Skipping State updates.');
-        return;
-    }
-    console.log(`\n--- Processing State Bills (Since ${updatedSince}) ---`);
-
-    let totalUpdated = 0;
-    let totalNewAi = 0;
-    let totalSkippedStates = 0;
-    const cutoffTime = new Date(updatedSince).getTime();
-
-    for (const stateMeta of STATE_OCD_IDS) {
-        let page = 1;
-        let hasMore = true;
-        let stateHadUpdates = false;
-
-        while (hasMore) {
-            const url = `${OPENSTATES_API_BASE_URL}/bills?jurisdiction=${stateMeta.ocdId}&updated_since=${updatedSince}&sort=updated_desc&page=${page}&per_page=20&apikey=${OPENSTATES_API_KEY}&include=abstracts&include=sponsorships&include=actions`;
-
-            try {
-                await delay(200);
-                const response = await fetch(url);
-                if (!response.ok) break;
-
-                const data: any = await response.json();
-                const bills = data.results || [];
-
-                if (bills.length === 0) break;
-
-                // Early exit optimization: check if oldest bill on this page is before cutoff
-                let shouldContinue = false;
-
-                for (const bill of bills) {
-                    const billUpdatedAt = bill.updated_at ? new Date(bill.updated_at).getTime() : 0;
-
-                    // If this bill is older than our cutoff, we can stop for this state
-                    // (since results are sorted by updated_desc)
-                    if (billUpdatedAt < cutoffTime) {
-                        hasMore = false;
-                        break;
-                    }
-
-                    shouldContinue = true;
-                    const mongoId = displayOpenStatesId(bill.id);
-                    const existing = await getLegislationById(mongoId);
-
-                    // Use strict AI filter - only bills with explicit AI mentions
-                    const title = bill.title || '';
-                    const summary = bill.abstracts?.[0]?.abstract || '';
-                    const abstracts = bill.abstracts || [];
-
-                    const hasExplicitAI =
-                        title.toLowerCase().includes('artificial intelligence') ||
-                        /\bai\b/i.test(title) ||
-                        summary.toLowerCase().includes('artificial intelligence') ||
-                        /\bai\b/i.test(summary) ||
-                        abstracts.some((a: any) =>
-                            (a.abstract || '').toLowerCase().includes('artificial intelligence') ||
-                            /\bai\b/i.test(a.abstract || '')
-                        );
-
-                    if (existing) {
-                        // Update existing bill regardless of AI status (it's already in DB)
-                        const classification = classifyLegislationForFetch({
-                            title: bill.title,
-                            summary: bill.abstracts?.[0]?.abstract,
-                            abstracts: bill.abstracts
-                        });
-                        const transformed = transformOpenStatesBill(bill, classification || existing);
-                        transformed.geminiSummary = existing.geminiSummary;
-                        await upsertLegislation(transformed);
-                        totalUpdated++;
-                        stateHadUpdates = true;
-                    } else if (hasExplicitAI) {
-                        // Only insert new bills if they explicitly mention AI
-                        const classification = classifyLegislationForFetch({
-                            title: bill.title,
-                            summary: bill.abstracts?.[0]?.abstract,
-                            abstracts: bill.abstracts
-                        });
-                        const transformed = transformOpenStatesBill(bill, classification);
-                        transformed.geminiSummary = null;
-                        await upsertLegislation(transformed);
-                        console.log(`  [NEW AI] ${stateMeta.abbr} ${bill.identifier}: ${bill.title.substring(0, 50)}...`);
-                        totalNewAi++;
-                        stateHadUpdates = true;
-                    }
-                }
-
-                // If we didn't process any bills on this page, we can stop
-                if (!shouldContinue) {
-                    hasMore = false;
-                    break;
-                }
-
-                if (data.pagination && data.pagination.page < data.pagination.max_page) {
-                    page++;
-                } else {
-                    hasMore = false;
-                }
-            } catch (err) {
-                console.error(`Error processing ${stateMeta.abbr}:`, err);
-                hasMore = false;
-            }
-        }
-
-        if (!stateHadUpdates) {
-            totalSkippedStates++;
-        }
-    }
-    console.log(`State Bills Update Complete: ${totalUpdated} updated, ${totalNewAi} new AI bills.`);
-    console.log(`States with no updates: ${totalSkippedStates}/${STATE_OCD_IDS.length}`);
-}
+// State Bills update is handled by independent script src/scripts/updateStateBills.ts
 
 
 async function updateStateVotes(updatedSince: string) {
-    if (!OPENSTATES_API_KEY) return;
+    if (OPENSTATES_API_KEYS.length === 0) return;
     console.log(`\n--- Processing State Votes (Since ${updatedSince}) ---`);
 
     const billsCollection = await getCollection('legislation');
@@ -462,12 +372,28 @@ async function updateStateVotes(updatedSince: string) {
 
         while (hasMore) {
             // Vote endpoint support updated_since? Yes usually.
-            const url = `${OPENSTATES_API_BASE_URL}/votes?jurisdiction=${stateMeta.ocdId}&updated_since=${updatedSince}&sort=updated_desc&page=${page}&per_page=20&apikey=${OPENSTATES_API_KEY}`;
+            const url = `${OPENSTATES_API_BASE_URL}/votes?jurisdiction=${stateMeta.ocdId}&updated_since=${updatedSince}&sort=updated_desc&page=${page}&per_page=20&apikey=${getCurrentOpenStatesApiKey()}`;
 
             try {
                 await delay(200);
                 const response = await fetch(url);
-                if (!response.ok) break;
+                if (!response.ok) {
+                    if (response.status === 429) {
+                        consecutiveOpenStatesRateLimits++;
+                        console.log(`⚠️  OpenStates Rate limit hit (${consecutiveOpenStatesRateLimits}/5).`);
+
+                        if (consecutiveOpenStatesRateLimits >= 2 && currentOpenStatesKeyIndex < OPENSTATES_API_KEYS.length - 1) {
+                            rotateOpenStatesApiKey();
+                            await delay(5000);
+                            continue; // Retry with new key
+                        }
+
+                        await delay(60000); // Wait 1 minute
+                        if (consecutiveOpenStatesRateLimits >= 5) break; // Give up on this state
+                        continue;
+                    }
+                    break;
+                }
 
                 const data: any = await response.json();
                 const votes = data.results || [];
@@ -505,7 +431,7 @@ async function updateStateVotes(updatedSince: string) {
 }
 
 async function updateStateLegislators(updatedSince: string) {
-    if (!OPENSTATES_API_KEY) return;
+    if (OPENSTATES_API_KEYS.length === 0) return;
     console.log(`\n--- Processing State Legislators (Since ${updatedSince}) ---`);
 
     const legislatorsCollection = await getCollection('legislators');
@@ -516,12 +442,25 @@ async function updateStateLegislators(updatedSince: string) {
         let hasMore = true;
 
         while (hasMore) {
-            const url = `${OPENSTATES_API_BASE_URL}/people?jurisdiction=${stateMeta.ocdId}&updated_since=${updatedSince}&sort=updated_desc&page=${page}&per_page=20&apikey=${OPENSTATES_API_KEY}`;
+            const url = `${OPENSTATES_API_BASE_URL}/people?jurisdiction=${stateMeta.ocdId}&updated_since=${updatedSince}&sort=updated_desc&page=${page}&per_page=20&apikey=${getCurrentOpenStatesApiKey()}`;
 
             try {
                 await delay(200);
                 const response = await fetch(url);
-                if (!response.ok) break;
+                if (!response.ok) {
+                    if (response.status === 429) {
+                        consecutiveOpenStatesRateLimits++;
+                        if (consecutiveOpenStatesRateLimits >= 2 && currentOpenStatesKeyIndex < OPENSTATES_API_KEYS.length - 1) {
+                            rotateOpenStatesApiKey();
+                            await delay(5000);
+                            continue;
+                        }
+                        await delay(60000);
+                        if (consecutiveOpenStatesRateLimits >= 5) break;
+                        continue;
+                    }
+                    break;
+                }
 
                 const data: any = await response.json();
                 const people = data.results || [];
@@ -730,14 +669,14 @@ async function runDailyUpdate() {
 
     // Report summary
     if (errors.length > 0) {
-        console.warn(`\n⚠️  Some updates failed: ${errors.join(', ')}`); 
+        console.warn(`\n⚠️  Some updates failed: ${errors.join(', ')}`);
         console.warn('Continuing workflow - successful updates have been saved\n');
     }
 
     saveState({ lastRun: today });
     console.log(`\n=== Daily Update Complete ===`);
     console.log(`Successful: ${4 - errors.length}/4 update sections`);
-    
+
     // Exit with 0 even if some updates failed - timestamp should always update
     process.exit(0);
 }
