@@ -51,6 +51,7 @@ jobs:
         env:
           MONGODB_URI: ${{ secrets.MONGODB_URI }}
           OPENSTATES_API_KEY: ${{ secrets.OPENSTATES_API_KEY }}
+          UPDATED_SINCE: ${{ env.FROM_DATE }}
         run: |
           echo "Fetching state bill updates since: $FROM_DATE"
           # updateStateBills.ts uses its own progress tracking, not the FROM_DATE

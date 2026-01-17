@@ -12,7 +12,7 @@ config({ path: path.resolve(process.cwd(), '.env') });
 
 const OPENSTATES_API_KEY = process.env.OPENSTATES_API_KEY;
 const OPENSTATES_API_BASE_URL = 'https://v3.openstates.org';
-const UPDATED_SINCE = '2026-01-01'; // Date of bulk dump approximately
+const UPDATED_SINCE = process.env.UPDATED_SINCE || '2026-01-01'; // From workflow or bulk dump date
 const PROGRESS_FILE = path.resolve(process.cwd(), 'data/state-update-progress.json');
 
 // Progress tracking
