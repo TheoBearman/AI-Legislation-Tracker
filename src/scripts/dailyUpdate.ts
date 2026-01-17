@@ -39,34 +39,9 @@ function rotateOpenStatesApiKey(): void {
 }
 const OPENSTATES_API_BASE_URL = 'https://v3.openstates.org';
 
-// Congress API Keys (primary + backups) - automatically filters out undefined keys
-const CONGRESS_API_KEYS = [
-    process.env.US_CONGRESS_API_KEY,
-    process.env.US_CONGRESS_API_KEY_BACKUP_1,
-    process.env.US_CONGRESS_API_KEY_BACKUP_2,
-].filter(Boolean) as string[];
-console.log('ℹ️  Loaded ' + CONGRESS_API_KEYS.length + ' Congress API keys.');
-
+// Congress API Key
+const US_CONGRESS_API_KEY = process.env.US_CONGRESS_API_KEY;
 const CONGRESS_API_BASE_URL = 'https://api.congress.gov/v3';
-
-// Key rotation state
-let currentKeyIndex = 0;
-let consecutiveRateLimits = 0;
-const RATE_LIMIT_THRESHOLD = 2; // Switch keys after 2 consecutive 429s
-
-function getCurrentCongressApiKey(): string {
-    return CONGRESS_API_KEYS[currentKeyIndex] || '';
-}
-
-function rotateCongressApiKey(): void {
-    if (currentKeyIndex < CONGRESS_API_KEYS.length - 1) {
-        currentKeyIndex++;
-        consecutiveRateLimits = 0; // Reset counter on rotation
-        console.log(`🔄 Rotating to backup Congress API key #${currentKeyIndex + 1}`);
-    } else {
-        console.warn('⚠️  All Congress API keys exhausted. Continuing with last key.');
-    }
-}
 
 const STATE_FILE = path.resolve(process.cwd(), 'data/daily_update_state.json');
 
@@ -317,34 +292,35 @@ function transformOpenStatesPerson(person: any, jurisdictionName: string): any {
 
 
 // --- Congress Helpers ---
+// --- Congress Helpers ---
 async function fetchWithRetry(url: string, retries = 3, backoff = 2000): Promise<any> {
     try {
         const response = await fetch(url);
 
         if (response.status === 429) {
-            consecutiveRateLimits++;
-            console.log(`⚠️  Rate limit hit (${consecutiveRateLimits}/${RATE_LIMIT_THRESHOLD + 3}). Waiting ${backoff}ms...`);
-
-            // Rotate key if we hit threshold
-            if (consecutiveRateLimits >= RATE_LIMIT_THRESHOLD && url.includes('api.congress.gov')) {
-                rotateCongressApiKey();
-                // Replace api_key in URL with new key
-                const newKey = getCurrentCongressApiKey();
-                url = url.replace(/api_key=[^&]+/, `api_key=${newKey}`);
+            console.log(`⚠️  Congress API Rate limit hit. Waiting ${backoff}ms...`);
+            if (retries > 0) {
+                await delay(backoff);
+                return fetchWithRetry(url, retries - 1, backoff * 2);
             }
+            throw new Error('Rate limit exceeded (429) and max retries reached');
+        }
 
+        if (response.status >= 500) {
+            console.log(`⚠️  Congress API Error ${response.status}. Retrying...`);
+            if (retries > 0) {
+                await delay(backoff);
+                return fetchWithRetry(url, retries - 1, backoff * 2);
+            }
+        }
+
+        return response;
+    } catch (error) {
+        if (retries > 0) {
             await delay(backoff);
             return fetchWithRetry(url, retries - 1, backoff * 2);
         }
-
-        // Success - reset rate limit counter
-        consecutiveRateLimits = 0;
-        return response;
-
-    } catch (error) {
-        if (retries === 0) throw error;
-        await delay(backoff);
-        return fetchWithRetry(url, retries - 1, backoff * 2);
+        throw error;
     }
 }
 
@@ -503,8 +479,8 @@ async function updateExecutiveOrders(updatedSince: string) {
 }
 
 async function updateCongressBills(updatedSince: string) {
-    if (CONGRESS_API_KEYS.length === 0) {
-        console.error('No Congress API keys available. Skipping Congress updates.');
+    if (!US_CONGRESS_API_KEY) {
+        console.error('US_CONGRESS_API_KEY is not set. Skipping Congress updates.');
         return;
     }
     console.log(`\n--- Processing Congress Bills (Recent Actions) ---`);
@@ -528,7 +504,7 @@ async function updateCongressBills(updatedSince: string) {
     let shouldContinue = true;
 
     while (shouldContinue && offset < 500) { // Safety cap of 500 recent bills
-        const url = `${CONGRESS_API_BASE_URL}/bill/${CURRENT_CONGRESS}?api_key=${getCurrentCongressApiKey()}&format=json&offset=${offset}&limit=${limit}&sort=updateDate+desc`;
+        const url = `${CONGRESS_API_BASE_URL}/bill/${CURRENT_CONGRESS}?api_key=${US_CONGRESS_API_KEY}&format=json&offset=${offset}&limit=${limit}&sort=updateDate+desc`;
 
         try {
             const response = await fetchWithRetry(url);
@@ -553,7 +529,7 @@ async function updateCongressBills(updatedSince: string) {
                 const existing = await getLegislationById(billId);
 
                 // Fetch full details
-                const detailUrl = `${CONGRESS_API_BASE_URL}/bill/${CURRENT_CONGRESS}/${bill.type.toLowerCase()}/${bill.number}?api_key=${getCurrentCongressApiKey()}&format=json`;
+                const detailUrl = `${CONGRESS_API_BASE_URL}/bill/${CURRENT_CONGRESS}/${bill.type.toLowerCase()}/${bill.number}?api_key=${US_CONGRESS_API_KEY}&format=json`;
                 const detailResponse = await fetchWithRetry(detailUrl);
                 if (!detailResponse.ok) continue;
 
@@ -572,7 +548,7 @@ async function updateCongressBills(updatedSince: string) {
 
                 if (existing) {
                     // Update existing bill (always, to capture status changes)
-                    const actionsRes = await fetchWithRetry(`${CONGRESS_API_BASE_URL}/bill/${CURRENT_CONGRESS}/${bill.type.toLowerCase()}/${bill.number}/actions?api_key=${getCurrentCongressApiKey()}&format=json`);
+                    const actionsRes = await fetchWithRetry(`${CONGRESS_API_BASE_URL}/bill/${CURRENT_CONGRESS}/${bill.type.toLowerCase()}/${bill.number}/actions?api_key=${US_CONGRESS_API_KEY}&format=json`);
                     if (actionsRes.ok) congressBill.actions = await actionsRes.json();
 
                     const transformed = transformCongressBillToMongoDB(congressBill);
@@ -584,7 +560,7 @@ async function updateCongressBills(updatedSince: string) {
                     updatedCount++;
                 } else if (hasExplicitAI) {
                     // New AI Bill - only insert if it explicitly mentions AI
-                    const actionsRes = await fetchWithRetry(`${CONGRESS_API_BASE_URL}/bill/${CURRENT_CONGRESS}/${bill.type.toLowerCase()}/${bill.number}/actions?api_key=${getCurrentCongressApiKey()}&format=json`);
+                    const actionsRes = await fetchWithRetry(`${CONGRESS_API_BASE_URL}/bill/${CURRENT_CONGRESS}/${bill.type.toLowerCase()}/${bill.number}/actions?api_key=${US_CONGRESS_API_KEY}&format=json`);
                     if (actionsRes.ok) congressBill.actions = await actionsRes.json();
 
                     const transformed = transformCongressBillToMongoDB(congressBill);

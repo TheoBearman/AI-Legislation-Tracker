@@ -65,8 +65,6 @@ jobs:
           MONGODB_URI: ${{ secrets.MONGODB_URI }}
           OPENSTATES_API_KEY: ${{ secrets.OPENSTATES_API_KEY }}
           US_CONGRESS_API_KEY: ${{ secrets.US_CONGRESS_API_KEY }}
-          US_CONGRESS_API_KEY_BACKUP_1: ${{ secrets.US_CONGRESS_API_KEY_BACKUP_1 }}
-          US_CONGRESS_API_KEY_BACKUP_2: ${{ secrets.US_CONGRESS_API_KEY_BACKUP_2 }}
         run: |
           echo "Running daily updates for votes, legislators, and executive orders"
           npx tsx src/scripts/dailyUpdate.ts
