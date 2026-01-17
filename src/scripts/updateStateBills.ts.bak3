@@ -308,16 +308,16 @@ async function updateStateBills() {
 
                 // EARLY EXIT OPTIMIZATION: Check if bills are older than cutoff
                 let shouldContinue = false;
-                let oldBillCount = 0;
 
                 // Process bills
                 for (const bill of bills) {
                     const billUpdatedAt = bill.updated_at ? new Date(bill.updated_at).getTime() : 0;
 
-                    // If this bill is older than our cutoff, count it and skip
+                    // If this bill is older than our cutoff, stop processing this state
                     if (billUpdatedAt < cutoffTime) {
-                        oldBillCount++;
-                        continue;
+                        console.log(`  ⏭️  Reached bills older than ${UPDATED_SINCE}, skipping remaining pages for ${state.abbr}`);
+                        hasMore = false;
+                        break;
                     }
 
                     shouldContinue = true;
@@ -345,14 +345,6 @@ async function updateStateBills() {
                         }
                     }
                 }
-
-                // If >75% of bills on this page are old, stop fetching more pages
-                if (oldBillCount > bills.length * 0.75) {
-                    console.log(`  ⏭️  ${oldBillCount}/${bills.length} bills older than ${UPDATED_SINCE}, stopping pagination for ${state.abbr}`);
-                    hasMore = false;
-                    break;
-                }
-
 
                 // If we didn't process any bills on this page, stop
                 if (!shouldContinue) {
