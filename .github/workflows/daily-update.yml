@@ -5,6 +5,11 @@ on:
     # Run daily at 6 AM UTC
     - cron: '0 6 * * *'
   workflow_dispatch: # Allow manual trigger from GitHub UI
+    inputs:
+      start_from_state:
+        description: 'Start processing from this state abbr (e.g., NY). Leave empty for normal resume.'
+        required: false
+        type: string
 
 jobs:
   update-database:
@@ -56,9 +61,10 @@ jobs:
           UPDATED_SINCE: ${{ env.FROM_DATE }}
         run: |
           echo "Fetching state bill updates since: $FROM_DATE"
-          # updateStateBills.ts uses its own progress tracking, not the FROM_DATE
-          # It will pick up where it left off automatically
-          npx tsx src/scripts/updateStateBills.ts
+          if [ -n "${{ github.event.inputs.start_from_state }}" ]; then
+            echo "MANUAL OVERRIDE: Starting from ${{ github.event.inputs.start_from_state }}"
+          fi
+          npx tsx src/scripts/updateStateBills.ts --start-from="${{ github.event.inputs.start_from_state }}"
 
       - name: Run Daily Update Script
         env:

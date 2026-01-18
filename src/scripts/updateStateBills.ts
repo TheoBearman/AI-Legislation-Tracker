@@ -235,15 +235,32 @@ async function updateStateBills() {
     // Load progress
     const progress = loadProgress();
 
-    // Optional: Limit to specific states via command line args
-    // Usage: npx tsx src/scripts/updateStateBills.ts CA TX NY
-    const targetStates = process.argv.slice(2);
-    let statesToProcess = targetStates.length > 0
-        ? STATE_OCD_IDS.filter(s => targetStates.includes(s.abbr))
-        : STATE_OCD_IDS;
+    // Parse args for --start-from=STATE or regular state list
+    const args = process.argv.slice(2);
+    const startFromArg = args.find(a => a.startsWith('--start-from='));
+    const startFromState = startFromArg ? startFromArg.split('=')[1].toUpperCase().trim() : null;
 
-    // Filter out already completed states (unless specific states were requested)
-    if (targetStates.length === 0) {
+    // Filter out flags from potential direct state args (e.g. "CA TX")
+    const targetStates = args.filter(a => !a.startsWith('--'));
+
+    let statesToProcess = STATE_OCD_IDS;
+
+    if (startFromState && startFromState.length === 2) {
+        // Mode 1: Start From specific state and continue to end
+        const startIndex = STATE_OCD_IDS.findIndex(s => s.abbr === startFromState);
+        if (startIndex !== -1) {
+            console.log(`🚀 Override: Starting from ${startFromState} (skipping previous states)`);
+            statesToProcess = STATE_OCD_IDS.slice(startIndex);
+            // In override mode, we IGNORE the progress file's completedStates to ensure we actually process
+        } else {
+            console.warn(`⚠️  Start state '${startFromState}' not found. Defaulting to normal behavior.`);
+        }
+    } else if (targetStates.length > 0) {
+        // Mode 2: Specific list of states
+        statesToProcess = STATE_OCD_IDS.filter(s => targetStates.includes(s.abbr));
+        console.log(`Target states: ${targetStates.join(', ')}`);
+    } else {
+        // Mode 3: Normal Resume (filter out completed)
         statesToProcess = statesToProcess.filter(s => !progress.completedStates.includes(s.abbr));
         if (progress.completedStates.length > 0) {
             console.log(`Resuming from previous run. Already completed: ${progress.completedStates.join(', ')}`);
@@ -251,9 +268,6 @@ async function updateStateBills() {
     }
 
     console.log(`\n=== Updating State Bills (Since ${UPDATED_SINCE}) ===`);
-    if (targetStates.length > 0) {
-        console.log(`Target states: ${targetStates.join(', ')}`);
-    }
 
     let processedCount = 0;
     let updatedCount = 0;
