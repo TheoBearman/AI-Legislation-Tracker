@@ -53,3 +53,4 @@ src/data/legislation2.json
 .idx
 .ideascrapers/
 data/
+!data/state-update-progress.json
