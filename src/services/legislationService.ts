@@ -280,7 +280,8 @@ export async function getAllLegislationWithFiltering({
   latestActionAt_lte,
   state,
   stateAbbr,
-  context
+  context,
+  excludeCongress
 }: {
   search?: string;
   limit?: number;
@@ -309,6 +310,7 @@ export async function getAllLegislationWithFiltering({
   state?: string;
   stateAbbr?: string;
   context?: 'policy-updates-feed' | 'policy-tracker' | 'email-script' | 'api';
+  excludeCongress?: boolean;
 }): Promise<Legislation[]> {
   try {
     // Parse filtering parameters
@@ -470,13 +472,31 @@ export async function getAllLegislationWithFiltering({
       finalFilter = { $and: [filtersWithoutOr, { $or: searchOr }] };
     }
 
+
+
+    // Clarification on excludeCongress logic:
+    // If showCongress is true, excludeCongress is ignored (mutually exclusive)
+    // If search is present, we often want widest possible results, but if user explicitly filtered to "State", we should respect it.
+    // Let's pass it through and handle precedence in getAllLegislation.
+
     // Get legislation using the improved search approach
     let legislations = await getAllLegislation({
       limit: limit + 50, // Get more results to allow for proper sorting
       skip,
       sort,
       filter: finalFilter,
-      showCongress: isCongress
+      showCongress: isCongress,
+      excludeCongress: !!(search ? false : context === 'policy-updates-feed' ? excludeCongress : false)
+    });
+
+    // Re-call with clean params
+    legislations = await getAllLegislation({
+      limit: limit + 50,
+      skip,
+      sort,
+      filter: finalFilter,
+      showCongress: isCongress,
+      excludeCongress
     });
 
     // Apply context-aware consistent sorting
@@ -536,7 +556,8 @@ export async function getAllLegislationWithFiltering({
         skip: 0,
         sort,
         filter: fuzzyFilter,
-        showCongress: isCongress
+        showCongress: isCongress,
+        excludeCongress
       });
       if (allCandidates.length > 0) {
         const Fuse = (await import('fuse.js')).default;
@@ -624,13 +645,15 @@ export async function getAllLegislation({
   skip = 0,
   sort = { updatedAt: -1 },
   filter = {},
-  showCongress = false
+  showCongress = false,
+  excludeCongress = false
 }: {
   limit?: number;
   skip?: number;
   sort?: Record<string, 1 | -1>;
   filter?: Record<string, any>;
   showCongress?: boolean;
+  excludeCongress?: boolean;
 }): Promise<Legislation[]> {
   try {
     const legislationCollection = await getCollection('legislation');
@@ -675,6 +698,27 @@ export async function getAllLegislation({
         return rest as Legislation;
       });
     }
+
+    // NEW: Handle excludeCongress (State Only view)
+    // If excludeCongress is true, we want to filter OUT any Congress-related bills
+    // We can do this by ensuring jurisdictionName is NOT "United States Congress" (and not matching other Congress indicators)
+    if (excludeCongress && !showCongress) {
+      // console.log('[Service] Filtering OUT Congress bills (State Only)');
+      const congressExclusion = {
+        $and: [
+          { jurisdictionName: { $ne: 'United States Congress' } },
+          { session: { $not: { $regex: "Congress", $options: "i" } } }
+          // Add other exclusion patterns if needed
+        ]
+      };
+      // Merge with existing filter
+      if (filter && Object.keys(filter).length > 0) {
+        filter = { $and: [filter, congressExclusion] };
+      } else {
+        filter = congressExclusion;
+      }
+    }
+
 
     // Default behavior for all other queries (non-congress)
     const legislationDocs = await legislationCollection

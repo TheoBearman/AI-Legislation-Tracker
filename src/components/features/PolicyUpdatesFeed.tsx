@@ -14,6 +14,7 @@ import {
     DropdownMenuRadioItem,
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 // import { useUser } from "@clerk/nextjs";
 import { STATE_MAP } from "@/types/geo";
 import PolicyUpdateCard from "@/components/features/PolicyUpdateCard";
@@ -306,7 +307,8 @@ async function fetchUpdatesFeed({
     sponsor = "",
     sponsorId = "",
     showOnlyEnacted = false,
-    showOnlyFailed = false
+    showOnlyFailed = false,
+    excludeCongress = false
 }: {
     skip?: number;
     limit?: number;
@@ -321,6 +323,7 @@ async function fetchUpdatesFeed({
     sponsorId?: string;
     showOnlyEnacted?: boolean;
     showOnlyFailed?: boolean;
+    excludeCongress?: boolean;
 }) {
     const params = new URLSearchParams({ limit: String(limit), skip: String(skip) });
     if (search) params.append("search", search);
@@ -332,6 +335,8 @@ async function fetchUpdatesFeed({
         params.append("showCongress", "true");
     } else if (jurisdictionName) {
         params.append("jurisdictionName", jurisdictionName);
+    } else if (excludeCongress) {
+        params.append("excludeCongress", "true");
     }
 
     // Map lastAction to the correct field name for the API
@@ -383,6 +388,7 @@ export function PolicyUpdatesFeed() {
     const [classification, setClassification] = useState("");
     const [jurisdictionName, setJurisdictionName] = useState("");
     const [showCongress, setShowCongress] = useState(false);
+    const [excludeCongress, setExcludeCongress] = useState(false);
     const [sort, setSort] = useState<{ field: string; dir: 'asc' | 'desc' }>({ field: 'lastActionAt', dir: 'desc' });
     const [repFilter, setRepFilter] = useState<string>("");
     const [sponsorId, setSponsorId] = useState<string>("");
@@ -405,7 +411,8 @@ export function PolicyUpdatesFeed() {
         subject: string,
         classification: string,
         sort: any,
-        jurisdictionName: string
+        jurisdictionName: string,
+        excludeCongress: boolean
     } | null>(null);
 
     const [mounted, setMounted] = useState(false);
@@ -474,6 +481,11 @@ export function PolicyUpdatesFeed() {
             setLoading(true);
             return;
         }
+        // If coming from URL with NO state/congress param, ensure excludeCongress is false (unless we add a URL param for it later)
+        if (!stateParam && !stateAbbrParam && !congressParam && !sponsorIdParam && !repParam) {
+            // Optional: if we want to support ?filter=state in URL, we'd handle it here
+        }
+
         if (stateParam || stateAbbrParam) {
             let stateName = stateParam ? decodeURIComponent(stateParam) : null;
             if (stateAbbrParam && !stateName) {
@@ -550,6 +562,7 @@ export function PolicyUpdatesFeed() {
                     classification,
                     jurisdictionName,
                     showCongress,
+                    excludeCongress,
                     sponsorId: sponsorId, // Only send sponsorId, not sponsor name
                     showOnlyEnacted
                 });
@@ -573,7 +586,7 @@ export function PolicyUpdatesFeed() {
             loadingRef.current = false;
             setLoading(false);
         }
-    }, [hasMore, search, subject, sort, classification, jurisdictionName, showCongress, showOnlyBookmarked, bookmarks, sponsorId, showOnlyEnacted, showOnlyFailed, compactView]);
+    }, [hasMore, search, subject, sort, classification, jurisdictionName, showCongress, excludeCongress, showOnlyBookmarked, bookmarks, sponsorId, showOnlyEnacted, showOnlyFailed, compactView]);
 
     // Search handler for button/enter
     const handleSearch = useCallback(() => {
@@ -626,6 +639,7 @@ export function PolicyUpdatesFeed() {
                     classification,
                     jurisdictionName,
                     showCongress,
+                    excludeCongress,
                     sponsorId,
                     showOnlyEnacted
                 });
@@ -640,7 +654,7 @@ export function PolicyUpdatesFeed() {
         } finally {
             setLoading(false);
         }
-    }, [search, subject, sort, classification, jurisdictionName, showCongress, showOnlyBookmarked, bookmarks, sponsorId, showOnlyEnacted, showOnlyFailed, compactView]);
+    }, [search, subject, sort, classification, jurisdictionName, showCongress, excludeCongress, showOnlyBookmarked, bookmarks, sponsorId, showOnlyEnacted, showOnlyFailed, compactView]);
 
     // --- Seamless state/scroll restore ---
     // Use a ref to block the initial fetch until state/scroll is restored
@@ -673,6 +687,7 @@ export function PolicyUpdatesFeed() {
                 setClassification(state.classification || "");
                 setJurisdictionName(state.jurisdictionName || "");
                 setShowCongress(state.showCongress || false);
+                setExcludeCongress(state.excludeCongress || false);
                 setShowOnlyEnacted(state.showOnlyEnacted || false);
                 setShowOnlyFailed(state.showOnlyFailed || false);
                 setShowOnlyBookmarked(state.showOnlyBookmarked || false);
@@ -717,7 +732,7 @@ export function PolicyUpdatesFeed() {
 
         didRestore.current = true;
         hasRestored.current = true;
-        prevDeps.current = { search, subject, classification, sort, jurisdictionName };
+        prevDeps.current = { search, subject, classification, sort, jurisdictionName, excludeCongress };
     }, [searchParams]);
 
     // Block the initial fetch until after restore, and only fetch if updates are empty
@@ -763,6 +778,7 @@ export function PolicyUpdatesFeed() {
                         classification,
                         jurisdictionName,
                         showCongress,
+                        excludeCongress,
                         sponsorId: sponsorId, // Only send sponsorId, not sponsor name
                         showOnlyEnacted
                     });
@@ -786,7 +802,7 @@ export function PolicyUpdatesFeed() {
         return () => {
             isMounted = false;
         };
-    }, [search, subject, classification, sort, jurisdictionName, showCongress, showOnlyBookmarked, bookmarks, sponsorId, showOnlyEnacted, showOnlyFailed, compactView, didRestore.current]);
+    }, [search, subject, classification, sort, jurisdictionName, showCongress, excludeCongress, showOnlyBookmarked, bookmarks, sponsorId, showOnlyEnacted, showOnlyFailed, compactView, didRestore.current]);
 
 
     // Intersection Observer for infinite scroll
@@ -848,6 +864,7 @@ export function PolicyUpdatesFeed() {
                 hasMore,
                 jurisdictionName,
                 showCongress,
+                excludeCongress,
                 showOnlyEnacted,
                 showOnlyFailed,
                 showOnlyBookmarked,
@@ -860,13 +877,13 @@ export function PolicyUpdatesFeed() {
             try {
                 sessionStorage.removeItem('policyUpdatesFeedState');
                 sessionStorage.setItem('policyUpdatesFeedState', JSON.stringify({
-                    search, subject, classification, sort, showCongress, showOnlyEnacted, showOnlyBookmarked, compactView
+                    search, subject, classification, sort, showCongress, excludeCongress, showOnlyEnacted, showOnlyBookmarked, compactView
                 }));
             } catch (retryError) {
                 console.error('Failed to save even minimal state:', retryError);
             }
         }
-    }, [search, subject, classification, sort, skip, searchInput, hasMore, jurisdictionName, showCongress, showOnlyEnacted, showOnlyFailed, showOnlyBookmarked, compactView, updates]);
+    }, [search, subject, classification, sort, skip, searchInput, hasMore, jurisdictionName, showCongress, excludeCongress, showOnlyEnacted, showOnlyFailed, showOnlyBookmarked, compactView, updates]);
 
     // Save compact view preference to localStorage separately for persistence
     useEffect(() => {
@@ -997,6 +1014,7 @@ export function PolicyUpdatesFeed() {
                                 setSponsorId("");
                                 setJurisdictionName("");
                                 setShowCongress(false);
+                                setExcludeCongress(false);
                                 setShowOnlyEnacted(false);
                                 setShowOnlyFailed(false);
                                 setUpdates([]);
@@ -1035,6 +1053,43 @@ export function PolicyUpdatesFeed() {
                     </div>
                 </div>
             )}
+
+            {/* View Mode Tabs (All / Federal / State) */}
+            <div className="mb-6 flex justify-center">
+                <Tabs
+                    defaultValue="all"
+                    value={showCongress ? "federal" : excludeCongress ? "state" : "all"}
+                    onValueChange={(val) => {
+                        setUpdates([]);
+                        setSkip(0);
+                        skipRef.current = 0;
+                        setHasMore(true);
+                        setLoading(true);
+
+                        if (val === "federal") {
+                            setShowCongress(true);
+                            setExcludeCongress(false);
+                            setJurisdictionName("");
+                        } else if (val === "state") {
+                            setShowCongress(false);
+                            setExcludeCongress(true);
+                            setJurisdictionName("");
+                        } else {
+                            // "all"
+                            setShowCongress(false);
+                            setExcludeCongress(false);
+                            setJurisdictionName("");
+                        }
+                    }}
+                    className="w-full max-w-[400px]"
+                >
+                    <TabsList className="grid w-full grid-cols-3">
+                        <TabsTrigger value="all">All</TabsTrigger>
+                        <TabsTrigger value="federal">Federal</TabsTrigger>
+                        <TabsTrigger value="state">State</TabsTrigger>
+                    </TabsList>
+                </Tabs>
+            </div>
 
             {/*<AnimatedSection>*/}
             <div className="mb-6 flex flex-col md:flex-row flex-wrap gap-4 items-center justify-center md:justify-start">

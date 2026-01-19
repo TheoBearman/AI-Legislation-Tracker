@@ -40,6 +40,7 @@ export async function GET(request: Request) {
       state: searchParams.get('state') || undefined,
       stateAbbr: searchParams.get('stateAbbr') || undefined,
       context: (searchParams.get('context') as 'policy-updates-feed' | 'policy-tracker' | 'email-script' | 'api') || 'api',
+      excludeCongress: searchParams.get('excludeCongress') === 'true',
     });
 
     return NextResponse.json(legislations, { status: 200 });
