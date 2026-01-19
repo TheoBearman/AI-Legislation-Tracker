@@ -343,6 +343,7 @@ async function updateStateVotes(updatedSince: string) {
     let totalVotes = 0;
 
     for (const stateMeta of STATE_OCD_IDS) {
+        console.log(`Processing votes for ${stateMeta.abbr}...`);
         let page = 1;
         let hasMore = true;
 
@@ -352,7 +353,13 @@ async function updateStateVotes(updatedSince: string) {
 
             try {
                 await delay(200);
-                const response = await fetch(url);
+
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), 30000); // 30s timeout
+
+                const response = await fetch(url, { signal: controller.signal });
+                clearTimeout(timeoutId);
+
                 if (!response.ok) {
                     if (response.status === 429) {
                         consecutiveOpenStatesRateLimits++;
@@ -368,6 +375,7 @@ async function updateStateVotes(updatedSince: string) {
                         if (consecutiveOpenStatesRateLimits >= 5) break; // Give up on this state
                         continue;
                     }
+                    console.warn(`Failed to fetch votes for ${stateMeta.abbr} (Page ${page}): ${response.status} ${response.statusText}`);
                     break;
                 }
 
@@ -397,8 +405,12 @@ async function updateStateVotes(updatedSince: string) {
                 } else {
                     hasMore = false;
                 }
-            } catch (err) {
-                // console.error(`Error fetching votes for ${stateMeta.abbr}`, err);
+            } catch (err: any) {
+                if (err.name === 'AbortError') {
+                    console.error(`Timeout fetching votes for ${stateMeta.abbr} (Page ${page})`);
+                } else {
+                    console.error(`Error fetching votes for ${stateMeta.abbr}:`, err.message);
+                }
                 hasMore = false;
             }
         }
@@ -414,6 +426,7 @@ async function updateStateLegislators(updatedSince: string) {
     let totalLegislators = 0;
 
     for (const stateMeta of STATE_OCD_IDS) {
+        console.log(`Processing legislators for ${stateMeta.abbr}...`);
         let page = 1;
         let hasMore = true;
 
@@ -422,7 +435,13 @@ async function updateStateLegislators(updatedSince: string) {
 
             try {
                 await delay(200);
-                const response = await fetch(url);
+
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), 30000); // 30s timeout
+
+                const response = await fetch(url, { signal: controller.signal });
+                clearTimeout(timeoutId);
+
                 if (!response.ok) {
                     if (response.status === 429) {
                         consecutiveOpenStatesRateLimits++;
@@ -435,6 +454,7 @@ async function updateStateLegislators(updatedSince: string) {
                         if (consecutiveOpenStatesRateLimits >= 5) break;
                         continue;
                     }
+                    console.warn(`Failed to fetch legislators for ${stateMeta.abbr} (Page ${page}): ${response.status} ${response.statusText}`);
                     break;
                 }
 
@@ -458,8 +478,12 @@ async function updateStateLegislators(updatedSince: string) {
                 } else {
                     hasMore = false;
                 }
-            } catch (err) {
-                // console.error(`Error fetching people for ${stateMeta.abbr}`, err);
+            } catch (err: any) {
+                if (err.name === 'AbortError') {
+                    console.error(`Timeout fetching legislators for ${stateMeta.abbr} (Page ${page})`);
+                } else {
+                    console.error(`Error fetching people for ${stateMeta.abbr}:`, err.message);
+                }
                 hasMore = false;
             }
         }
